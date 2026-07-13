@@ -95,18 +95,26 @@ app.get('/', (req, res) => {
     
     /* 모달창 디자인 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-    .modal-box { background: white; width: 340px; padding: 25px; border-radius: 15px; position: relative; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .modal-box { background: white; width: 360px; max-height: 80vh; overflow-y: auto; padding: 25px; border-radius: 15px; position: relative; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .modal-box::-webkit-scrollbar { width: 8px; }
+    .modal-box::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    
     .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
     .close-btn:hover { color: #333; }
     .modal-header { display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 15px; }
     .modal-header img { width: 55px; height: 55px; background: #f9f9f9; border-radius: 8px; padding: 5px; border: 1px solid #eee; }
-    .modal-header h3 { margin: 0; font-size: 18px; color: #222; }
+    .modal-header h3 { margin: 0; font-size: 18px; color: #222; word-break: keep-all; }
     
-    /* 모달 내부 스탯 리스트 */
-    .stat-list { list-style: none; padding: 0; margin: 0; font-size: 14px; color: #444; line-height: 2; }
-    .stat-list li { border-bottom: 1px dashed #eee; padding: 5px 0; }
-    .stat-list li:last-child { border-bottom: none; }
-    .stat-list strong { color: #ff9900; display: inline-block; width: 80px; }
+    /* 상세 정보 스탯 디자인 */
+    .stat-list { list-style: none; padding: 0; margin: 0; font-size: 14px; color: #333; line-height: 1.8; }
+    .stat-list li { margin-bottom: 4px; }
+    .stat-label { display: inline-block; width: 90px; color: #555; }
+    .add-stat { color: #009900; font-weight: bold; } /* 추옵 초록색 */
+    .divider { border: 0; border-top: 1px dashed #ddd; margin: 12px 0; }
+    
+    .pot-title { font-weight: bold; margin-top: 10px; color: #000; }
+    .pot-grade { color: #d32f2f; font-weight: bold; font-size: 13px; }
+    .pot-line { padding-left: 10px; font-size: 13px; color: #444; }
   </style>
 </head>
 <body>
@@ -170,24 +178,78 @@ app.get('/', (req, res) => {
       }
     });
 
+    // 아이템 상세 스탯 추출 로직
     function openModal(idx) {
       const item = equipData[idx];
       document.getElementById('modalTitle').innerText = item.item_name;
       document.getElementById('modalImg').src = item.item_icon;
       
-      const part = item.item_equipment_part || '-';
-      const sf = (item.starforce && item.starforce !== '0') ? item.starforce + '성' : '없음';
-      const pot = item.potential_option_1 || '없음';
-      const add = item.additional_potential_option_1 || '없음';
+      let html = '<ul class="stat-list">';
+      
+      // 1. 기본 정보 (분류, 스타포스, 업그레이드)
+      html += '<li><strong class="stat-label">장비분류</strong> ' + (item.item_equipment_part || '-') + '</li>';
+      html += '<li><strong class="stat-label">스타포스</strong> ⭐ ' + (item.starforce || '0') + '성</li>';
+      
+      if (item.scroll_upgrade && item.scroll_upgrade !== '0') {
+        html += '<li><strong class="stat-label">주문서 작</strong> +' + item.scroll_upgrade + ' (업그레이드 가능: ' + item.scroll_upgradable_count + ')</li>';
+      }
+      if (item.cuttable_count && item.cuttable_count !== '255') {
+        html += '<li><strong class="stat-label">가위 횟수</strong> ' + item.cuttable_count + '회</li>';
+      }
 
-      document.getElementById('modalContent').innerHTML = 
-        '<ul class="stat-list">' +
-          '<li><strong>분류</strong> ' + part + '</li>' +
-          '<li><strong>스타포스</strong> ⭐ ' + sf + '</li>' +
-          '<li><strong>잠재능력</strong> ' + pot + '</li>' +
-          '<li><strong>에디셔널</strong> ' + add + '</li>' +
-        '</ul>';
-        
+      html += '<hr class="divider">';
+
+      // 2. 세부 스탯 파싱 함수 (총합 스탯 + 추옵 표시)
+      const total = item.item_total_option || {};
+      const add = item.item_add_option || {};
+
+      function getStat(label, key, isPercent) {
+        if (total[key] && total[key] !== '0') {
+          let unit = isPercent ? '%' : '';
+          let text = '<li><strong class="stat-label">' + label + '</strong> ' + total[key] + unit;
+          // 추옵이 존재하면 괄호 치고 초록색으로 표시
+          if (add[key] && add[key] !== '0') {
+            text += ' <span class="add-stat">(+' + add[key] + unit + ')</span>';
+          }
+          text += '</li>';
+          return text;
+        }
+        return '';
+      }
+
+      // 주요 스탯 나열
+      html += getStat('STR', 'str', false);
+      html += getStat('DEX', 'dex', false);
+      html += getStat('INT', 'int', false);
+      html += getStat('LUK', 'luk', false);
+      html += getStat('최대 HP', 'max_hp', false);
+      html += getStat('최대 MP', 'max_mp', false);
+      html += getStat('공격력', 'attack_power', false);
+      html += getStat('마력', 'magic_power', false);
+      html += getStat('보스 데미지', 'boss_damage', true);
+      html += getStat('방어율 무시', 'ignore_monster_armor', true);
+      html += getStat('올스탯', 'all_stat', true);
+
+      // 3. 잠재능력
+      if (item.potential_option_grade) {
+        html += '<hr class="divider">';
+        html += '<div class="pot-title">잠재능력 <span class="pot-grade">[' + item.potential_option_grade + ']</span></div>';
+        if (item.potential_option_1) html += '<li class="pot-line">- ' + item.potential_option_1 + '</li>';
+        if (item.potential_option_2) html += '<li class="pot-line">- ' + item.potential_option_2 + '</li>';
+        if (item.potential_option_3) html += '<li class="pot-line">- ' + item.potential_option_3 + '</li>';
+      }
+
+      // 4. 에디셔널 잠재능력
+      if (item.additional_potential_option_grade) {
+        html += '<hr class="divider">';
+        html += '<div class="pot-title">에디셔널 <span class="pot-grade">[' + item.additional_potential_option_grade + ']</span></div>';
+        if (item.additional_potential_option_1) html += '<li class="pot-line">- ' + item.additional_potential_option_1 + '</li>';
+        if (item.additional_potential_option_2) html += '<li class="pot-line">- ' + item.additional_potential_option_2 + '</li>';
+        if (item.additional_potential_option_3) html += '<li class="pot-line">- ' + item.additional_potential_option_3 + '</li>';
+      }
+
+      html += '</ul>';
+      document.getElementById('modalContent').innerHTML = html;
       document.getElementById('itemModal').style.display = 'flex';
     }
 
