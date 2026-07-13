@@ -1,5 +1,5 @@
 // server.js
-// 메이플스토리 캐릭터 기록검색 - 단일 파일 버전 (디버그 모드 포함)
+// 메이플스토리 캐릭터 기록검색 - 단일 파일 버전 (아이템 정보 포함)
 
 require('dotenv').config();
 const express = require('express');
@@ -31,7 +31,7 @@ async function nexonGet(pathname, params) {
     body = { raw: rawText };
   }
 
-  console.log('[NEXON RESPONSE]', res.status, JSON.stringify(body));
+  console.log('[NEXON RESPONSE]', pathname, res.status);
 
   if (!res.ok) {
     const err = new Error(body.error?.message || 'Nexon API error');
@@ -103,6 +103,15 @@ const PAGE_HTML = `<!DOCTYPE html>
   .stat .label{font-size:11.5px; color:#8a7a54; margin-bottom:6px;}
   .stat .value{font-family:'Space Mono',monospace; font-size:18px; font-weight:700;}
   .stat .value.pink{color:var(--berry-dim);}
+  .items-section{padding:24px 26px 4px; border-top:1px solid var(--parchment-dim);}
+  .items-title{font-size:11.5px; color:#8a7a54; letter-spacing:.04em; margin-bottom:14px; text-transform:uppercase; font-family:'Space Mono',monospace;}
+  .items-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:10px; padding-bottom:20px;}
+  .item-slot{background:var(--parchment-dim); border-radius:10px; padding:8px; text-align:center; position:relative;}
+  .item-slot img{width:100%; aspect-ratio:1; object-fit:contain; image-rendering:pixelated;}
+  .item-slot .item-part{font-size:9px; color:#8a7a54; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item-slot-tooltip{position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--parchment); font-size:10.5px; padding:4px 8px; border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s ease; margin-bottom:6px; z-index:5;}
+  .item-slot:active .item-slot-tooltip{opacity:1;}
+  .no-items{font-size:12.5px; color:#8a7a54; padding-bottom:20px;}
   .card-bottom{padding:22px 30px 28px; border-top:1px solid var(--parchment-dim); font-size:12.5px; color:#8a7a54;}
   footer{text-align:center; padding:30px 20px 50px; font-size:11.5px; color:rgba(135,168,147,.5);}
 </style>
@@ -155,6 +164,20 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
       return;
     }
 
+    const itemsHtml = (data.items && data.items.length)
+      ? \`<div class="items-section">
+          <div class="items-title">장착 아이템</div>
+          <div class="items-grid">
+            \${data.items.map(it => \`
+              <div class="item-slot">
+                <div class="item-slot-tooltip">\${escapeHtml(it.name)}</div>
+                <img src="\${it.icon}" alt="\${escapeHtml(it.name)}" loading="lazy">
+                <div class="item-part">\${escapeHtml(it.part)}</div>
+              </div>\`).join('')}
+          </div>
+        </div>\`
+      : \`<div class="items-section"><div class="no-items">장착 중인 아이템 정보가 없어요.</div></div>\`;
+
     main.innerHTML = \`
       <div class="card">
         <div class="card-top">
@@ -170,6 +193,7 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
           <div class="stat"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
           <div class="stat"><div class="label">인기도</div><div class="value">\${data.popularity}</div></div>
         </div>
+        \${itemsHtml}
         <div class="card-bottom">넥슨 오픈 API 실시간 조회 결과</div>
       </div>\`;
   }catch(e){
@@ -202,13 +226,28 @@ app.get('/api/character/:name', async (req, res) => {
     const idResult = await nexonGet('/id', { character_name: name });
     const ocid = idResult.ocid;
 
-    const [basic, stat, popularity] = await Promise.all([
+    const [basic, stat, popularity, itemEquip] = await Promise.all([
       nexonGet('/character/basic', { ocid }),
       nexonGet('/character/stat', { ocid }),
-      nexonGet('/character/popularity', { ocid })
+      nexonGet('/character/popularity', { ocid }),
+      nexonGet('/character/item-equipment', { ocid }).catch(err => {
+        console.error('[ITEM FETCH FAILED]', err.status, JSON.stringify(err.rawBody));
+        return null;
+      })
     ]);
 
     const combatPowerStat = stat.final_stat?.find(s => s.stat_name === '\uc804\ud22c\ub825');
+
+    let items = [];
+    if (itemEquip && Array.isArray(itemEquip.item_equipment)) {
+      items = itemEquip.item_equipment
+        .filter(it => it.item_name)
+        .map(it => ({
+          part: it.item_equipment_part || it.item_equipment_slot || '',
+          name: it.item_name,
+          icon: it.item_icon
+        }));
+    }
 
     res.json({
       name: basic.character_name,
@@ -219,7 +258,8 @@ app.get('/api/character/:name', async (req, res) => {
       exp_rate: basic.character_exp_rate,
       image: basic.character_image,
       power: combatPowerStat ? combatPowerStat.stat_value : '\uc815\ubcf4 \uc5c6\uc74c',
-      popularity: popularity.popularity
+      popularity: popularity.popularity,
+      items: items
     });
   } catch (err) {
     console.error('[ERROR]', err.status, err.code, JSON.stringify(err.rawBody));
