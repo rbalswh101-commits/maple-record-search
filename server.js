@@ -11,7 +11,7 @@ if (!NEXON_API_KEY) {
   console.warn('WARNING: NEXON_API_KEY가 설정되지 않았습니다. Render 환경변수를 확인하세요.');
 }
 
-// --- [유틸리티] 한국 시간(KST) 기준 어제 날짜 구하기 (넥슨 API는 보통 하루 전 데이터 조회) ---
+// --- [백엔드] 한국 시간(KST) 기준 어제 날짜 구하기 ---
 function getYesterdayKST() {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -21,7 +21,7 @@ function getYesterdayKST() {
   const year = kst.getFullYear();
   const month = String(kst.getMonth() + 1).padStart(2, '0');
   const day = String(kst.getDate()).padStart(2, '0');
-  return \`\${year}-\${month}-\${day}\`;
+  return year + '-' + month + '-' + day;
 }
 
 // --- [백엔드] 넥슨 API 통신 함수 ---
@@ -50,7 +50,7 @@ async function nexonGet(pathname, params) {
   return body;
 }
 
-// --- [백엔드] 캐릭터 검색 API ---
+// --- [백엔드] 캐릭터 검색 API 엔드포인트 ---
 app.get('/api/search/:name', async (req, res) => {
   try {
     const characterName = req.params.name;
@@ -67,7 +67,7 @@ app.get('/api/search/:name', async (req, res) => {
     });
 
     // 3. 프론트엔드로 데이터 전달
-    res.json(equipData.item_equipment);
+    res.json(equipData.item_equipment || []);
 
   } catch (error) {
     console.error('API Error:', error.message);
@@ -75,8 +75,9 @@ app.get('/api/search/:name', async (req, res) => {
   }
 });
 
-// --- [프론트엔드] 메인 웹페이지 ---
+// --- [프론트엔드] 메인 웹페이지 렌더링 ---
 app.get('/', (req, res) => {
+  // 에러 발생 확률을 없애기 위해 복잡한 백틱 연산 대신 깔끔한 HTML 문자열로 전달합니다.
   res.send(`
 <!DOCTYPE html>
 <html lang="ko">
@@ -88,7 +89,6 @@ app.get('/', (req, res) => {
     .search-box { margin-bottom: 20px; }
     input { padding: 8px; font-size: 16px; }
     button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
-    
     #item-container { display: flex; flex-wrap: wrap; gap: 10px; }
     .item-card {
       background: #fff; padding: 10px; border: 1px solid #ddd;
@@ -97,21 +97,15 @@ app.get('/', (req, res) => {
     .item-card:hover { border-color: #888; background: #f0f0f0; }
     .item-card img { width: 40px; height: 40px; }
     .item-card p { font-size: 12px; margin: 5px 0 0; word-break: keep-all; }
-
-    /* 모달 스타일 */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.6); z-index: 999;
-      align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.6); z-index: 999; align-items: center; justify-content: center;
     }
     .modal-box {
       background: #fff; width: 350px; padding: 20px; border-radius: 8px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative;
     }
-    .close-btn {
-      position: absolute; top: 10px; right: 15px; font-size: 24px;
-      cursor: pointer; color: #888;
-    }
+    .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #888; }
     .close-btn:hover { color: #000; }
     .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
     .modal-header img { width: 50px; height: 50px; }
@@ -143,7 +137,7 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
-    let currentEquipData = []; // 검색된 장비 데이터를 저장할 전역 변수
+    let currentEquipData = [];
 
     const searchBtn = document.getElementById('searchBtn');
     const charNameInput = document.getElementById('charNameInput');
@@ -156,8 +150,7 @@ app.get('/', (req, res) => {
     const modalImg = document.getElementById('modalImg');
     const modalContent = document.getElementById('modalContent');
 
-    // --- 검색 버튼 클릭 이벤트 ---
-    searchBtn.addEventListener('click', async () => {
+    searchBtn.addEventListener('click', async function() {
       const name = charNameInput.value.trim();
       if (!name) return alert('캐릭터 닉네임을 입력해주세요!');
 
@@ -165,32 +158,28 @@ app.get('/', (req, res) => {
       itemContainer.innerHTML = '';
 
       try {
-        const response = await fetch(\`/api/search/\${name}\`);
-        if (!response.ok) throw new Error('캐릭터를 찾을 수 없습니다.');
+        const response = await fetch('/api/search/' + encodeURIComponent(name));
+        if (!response.ok) throw new Error('캐릭터를 찾을 수 없거나 API 에러가 발생했습니다.');
         
         currentEquipData = await response.json();
         
-        if(currentEquipData.length === 0) {
-          statusMessage.innerText = '장착 중인 장비가 없습니다.';
+        if (currentEquipData.length === 0) {
+          statusMessage.innerText = '장착 중인 장비가 없거나 정보를 불러올 수 없습니다.';
           return;
         }
 
-        statusMessage.innerText = \`'\${name}'님의 장비 목록입니다.\`;
+        statusMessage.innerText = "'" + name + "'님의 장비 목록입니다.";
         
-        // 장비 아이콘들을 화면에 렌더링
-        currentEquipData.forEach((item, index) => {
+        currentEquipData.forEach(function(item, index) {
           const card = document.createElement('div');
           card.className = 'item-card';
-          // dataset에 배열 인덱스를 저장하여 나중에 클릭 시 꺼내볼 수 있게 함
           card.dataset.index = index; 
           
-          card.innerHTML = \`
-            <img src="\${item.item_icon}" alt="\${item.item_name}">
-            <p>\${item.item_name}</p>
-          \`;
+          card.innerHTML = '<img src="' + item.item_icon + '" alt="' + item.item_name + '"><p>' + item.item_name + '</p>';
           
-          // 카드 클릭 시 모달 열기 이벤트
-          card.addEventListener('click', () => openModal(index));
+          card.addEventListener('click', function() {
+            openModal(index);
+          });
           itemContainer.appendChild(card);
         });
 
@@ -199,42 +188,37 @@ app.get('/', (req, res) => {
       }
     });
 
-    // --- 모달 열기 및 상세 정보 바인딩 ---
     function openModal(index) {
       const item = currentEquipData[index];
       
       modalTitle.innerText = item.item_name;
       modalImg.src = item.item_icon;
       
-      // 넥슨 API에서 주는 옵션들을 모달에 예쁘게 정리
-      modalContent.innerHTML = \`
-        <ul class="stat-list">
-          <li><strong>분류:</strong> \${item.item_equipment_part}</li>
-          <li><strong>스타포스:</strong> ⭐ \${item.starforce !== '0' ? item.starforce : '없음'}</li>
-          <li><strong>잠재능력:</strong> \${item.potential_option_1 || '없음'}</li>
-          <li><strong>에디셔널:</strong> \${item.additional_potential_option_1 || '없음'}</li>
-        </ul>
-      \`;
+      const part = item.item_equipment_part || '알 수 없음';
+      const starforce = (item.starforce && item.starforce !== '0') ? item.starforce + '성' : '없음';
+      const pot1 = item.potential_option_1 || '없음';
+      const add1 = item.additional_potential_option_1 || '없음';
+
+      modalContent.innerHTML = '<ul class="stat-list">' +
+        '<li><strong>분류:</strong> ' + part + '</li>' +
+        '<li><strong>스타포스:</strong> ⭐ ' + starforce + '</li>' +
+        '<li><strong>잠재능력:</strong> ' + pot1 + '</li>' +
+        '<li><strong>에디셔널:</strong> ' + add1 + '</li>' +
+        '</ul>';
       
       modal.style.display = 'flex';
     }
 
-    // --- 모달 닫기 이벤트 ---
-    closeBtn.addEventListener('click', () => modal.style.display = 'none');
-    window.addEventListener('click', (e) => {
-      if (e.target === modal) modal.style.display = 'none';
-    });
-    
-    // 엔터키로도 검색되게 설정
-    charNameInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') searchBtn.click();
-    });
+    closeBtn.addEventListener('click', function() { modal.style.display = 'none'; });
+    window.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
+    charNameInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') searchBtn.click(); });
   </script>
 </body>
 </html>
   `);
 });
 
-app.listen(PORT, () => {
-  console.log(\`서버 실행 완료! http://localhost:\${PORT}\`);
+// 서버 가동
+app.listen(PORT, function() {
+  console.log('서버가 성공적으로 시작되었습니다. 포트: ' + PORT);
 });
