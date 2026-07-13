@@ -1,0 +1,13 @@
+{
+  "name": "maple-record-search",
+  "version": "1.0.0",
+  "description": "메이플스토리 캐릭터 기록검색 (넥슨 오픈 API 연동, 단일 파일 버전)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
