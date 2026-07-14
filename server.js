@@ -215,17 +215,18 @@ const PAGE_HTML = `<!DOCTYPE html>
   .item-slot .item-part{font-size:9px; color:var(--text-faint); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;}
   .no-items{font-size:12.5px; color:var(--text-faint); padding:20px 0;}
 
-  /* ---- 인게임 장비창 배치 ---- */
-  .equip-layout{display:grid; grid-template-columns:1fr minmax(110px,150px) 1fr; gap:14px; align-items:start; margin-bottom:14px;}
-  .equip-side{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; align-content:start;}
-  .equip-avatar{background:var(--panel-2); border:1px solid var(--line-strong); border-radius:16px; overflow:hidden; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center; align-self:stretch;}
+  /* ---- 인게임 장비창 배치 (좌/우 2열 + 아바타만, 고정 슬롯 크기) ---- */
+  .equip-layout{display:flex; justify-content:center; align-items:flex-start; gap:10px; margin-bottom:6px;}
+  .equip-side{display:grid; grid-template-columns:repeat(2, 52px); grid-auto-rows:52px; gap:6px; flex-shrink:0;}
+  .equip-side .item-slot{padding:5px; border-radius:9px;}
+  .equip-side .item-slot .item-part{display:none;}
+  .equip-avatar{width:130px; flex-shrink:0; background:var(--panel-2); border:1px solid var(--line-strong); border-radius:14px; overflow:hidden; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center; align-self:stretch;}
   .equip-avatar img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated; transform:scale(1.7); transform-origin:center center;}
-  .equip-bottom{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px;}
   @media (max-width:480px){
-    .equip-layout{grid-template-columns:1fr 84px 1fr; gap:8px;}
-    .equip-side{gap:6px;}
+    .equip-layout{gap:6px;}
+    .equip-side{grid-template-columns:repeat(2, 44px); grid-auto-rows:44px; gap:5px;}
+    .equip-avatar{width:104px;}
     .item-slot{padding:6px; border-radius:10px;}
-    .item-slot .item-part{font-size:8px;}
   }
 
   footer{text-align:center; padding:30px 20px 50px; font-size:11.5px; color:var(--text-faint);}
@@ -392,8 +393,7 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
             <div class="equip-side equip-left">\${slotGroups.left.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>
             <div class="equip-avatar">\${data.image ? \`<img src="\${data.image}" alt="\${escapeHtml(data.name)}">\` : ''}</div>
             <div class="equip-side equip-right">\${slotGroups.right.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>
-         </div>
-         \${slotGroups.bottom.length ? \`<div class="equip-bottom">\${slotGroups.bottom.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>\` : ''}\`
+         </div>\`
       : \`<div class="no-items">장착 중인 아이템 정보가 없어요.</div>\`;
 
     main.innerHTML = \`
