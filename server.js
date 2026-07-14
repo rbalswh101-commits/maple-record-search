@@ -1,5 +1,5 @@
 // server.js
-// 메이플스토리 캐릭터 기록검색 - 단일 파일 버전 (아이템 상세정보 모달 포함)
+// 메이플스토리 캐릭터 기록검색 - 다크 대시보드 버전
 
 require('dotenv').config();
 const express = require('express');
@@ -43,7 +43,7 @@ async function nexonGet(pathname, params) {
   return body;
 }
 
-// 스탯 옵션 객체를 "STR +10" 같은 문자열 배열로 변환
+// ---- 옵션 포맷 헬퍼 ----
 const STAT_LABELS = {
   str: 'STR', dex: 'DEX', int: 'INT', luk: 'LUK',
   max_hp: '최대 HP', max_mp: '최대 MP',
@@ -76,6 +76,24 @@ function formatPotentialLines(it, prefix) {
   return { grade: grade || null, lines };
 }
 
+// ---- 전투력 티어 산출 ----
+const TIERS = [
+  { name: '챌린저', min: 100000000, color: '#ff5ecb' },
+  { name: '그랜드마스터', min: 30000000, color: '#c15dff' },
+  { name: '마스터', min: 10000000, color: '#8c6bff' },
+  { name: '다이아몬드', min: 3000000, color: '#5ec9ff' },
+  { name: '플래티넘', min: 1000000, color: '#4fe0c9' },
+  { name: '골드', min: 300000, color: '#ffd24f' },
+  { name: '실버', min: 80000, color: '#b9c4d1' },
+  { name: '브론즈', min: 20000, color: '#d98a54' },
+  { name: '아이언', min: 0, color: '#7d8895' }
+];
+
+function getTier(power) {
+  const n = Number(power) || 0;
+  return TIERS.find(t => n >= t.min) || TIERS[TIERS.length - 1];
+}
+
 const PAGE_HTML = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -83,126 +101,156 @@ const PAGE_HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>메이플 기록실 — 캐릭터 검색</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
   :root{
-    --forest-deep:#122720; --forest-mid:#1c3a2e;
-    --parchment:#f6ecd2; --parchment-dim:#ece0c2;
-    --gold:#c9a227; --gold-bright:#e6c14f;
-    --berry:#b4485f; --berry-dim:#8f3549;
-    --ink:#2a2118; --sage:#87a893; --line: rgba(246,236,210,0.14);
+    --bg:#0a0e16; --bg-elev:#11161f; --panel:#141a25; --panel-2:#182030;
+    --line:rgba(255,255,255,0.07); --line-strong:rgba(255,255,255,0.14);
+    --text:#e8ecf4; --text-dim:#8a94a6; --text-faint:#5c6678;
+    --neon-cyan:#33e0ff; --neon-purple:#a78bfa; --neon-pink:#ff5ecb; --neon-green:#4fe0c9;
+    --danger:#ff6b81;
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
     background:
-      radial-gradient(circle at 15% -10%, #1f4433 0%, transparent 45%),
-      radial-gradient(circle at 90% 10%, #2a4a35 0%, transparent 40%),
-      var(--forest-deep);
-    color:var(--parchment);
+      radial-gradient(ellipse 900px 500px at 20% -10%, rgba(51,224,255,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(167,139,250,0.10), transparent 55%),
+      var(--bg);
+    color:var(--text);
     font-family:'Pretendard','Noto Sans KR',sans-serif;
     min-height:100vh;
   }
-  header{text-align:center; padding:74px 20px 32px;}
-  .eyebrow{font-family:'Space Mono',monospace; letter-spacing:0.32em; font-size:11px; color:var(--gold-bright); text-transform:uppercase; margin-bottom:18px;}
-  h1{font-family:'Gowun Batang',serif; font-size:clamp(34px,6vw,58px); margin:0 0 12px; color:var(--parchment);}
-  h1 span{color:var(--gold-bright);}
-  .sub{font-size:15px; color:var(--sage); max-width:440px; margin:0 auto; line-height:1.6;}
-  .search-wrap{max-width:560px; margin:36px auto 0; padding:0 20px;}
-  .search-box{display:flex; gap:10px; background:rgba(20,42,32,0.6); border:1px solid var(--line); border-radius:14px; padding:8px; backdrop-filter:blur(6px);}
-  .search-box input{flex:1; background:transparent; border:none; outline:none; color:var(--parchment); font-size:16px; padding:12px 14px;}
-  .search-box input::placeholder{color:rgba(246,236,210,0.35);}
-  .search-box button{background:linear-gradient(135deg,var(--gold-bright),var(--gold)); border:none; color:#2a1f08; font-weight:700; font-size:14px; padding:0 22px; border-radius:9px; cursor:pointer; transition:transform .15s ease;}
-  .search-box button:hover{transform:translateY(-1px);}
-  .search-box button:disabled{opacity:0.6; cursor:default;}
-  .hint{text-align:center; font-size:12px; color:rgba(135,168,147,0.7); margin-top:14px;}
-  main{max-width:760px; margin:0 auto; padding:40px 20px 100px; min-height:280px;}
-  .empty-state, .loading{text-align:center; color:rgba(246,236,210,0.4); font-size:14px; padding:60px 20px;}
-  .not-found{text-align:center; padding:50px 20px; color:var(--berry);}
-  .not-found .big{font-family:'Gowun Batang',serif; font-size:22px; color:var(--parchment); margin-bottom:8px;}
-  .card{background:var(--parchment); color:var(--ink); border-radius:20px; overflow:hidden; box-shadow:0 30px 60px -20px rgba(0,0,0,0.5); animation:riseIn .5s cubic-bezier(.16,1,.3,1);}
-  @keyframes riseIn{from{opacity:0; transform:translateY(18px) scale(.98);} to{opacity:1; transform:translateY(0) scale(1);}}
-  @media (prefers-reduced-motion: reduce){.card{animation:none;}}
-  .card-top{background:linear-gradient(135deg,var(--forest-mid),#23473a); padding:32px 30px 60px; position:relative;}
-  .world-tag{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.15em; color:var(--gold-bright); text-transform:uppercase;}
-  .char-name{font-family:'Gowun Batang',serif; font-size:32px; font-weight:700; margin:6px 0 4px;}
-  .char-job{font-size:14px; color:var(--sage);}
-  .guild-tag{position:absolute; top:32px; right:30px; text-align:right; font-size:12px; color:rgba(246,236,210,.6);}
-  .guild-tag b{display:block; color:var(--gold-bright); font-size:14px;}
-  .char-avatar{position:absolute; left:30px; bottom:-30px; width:60px; height:80px; image-rendering:pixelated;}
-  .stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--parchment-dim); margin-top:44px;}
-  .stat{background:var(--parchment); padding:20px 26px;}
-  .stat .label{font-size:11.5px; color:#8a7a54; margin-bottom:6px;}
-  .stat .value{font-family:'Space Mono',monospace; font-size:18px; font-weight:700;}
-  .stat .value.pink{color:var(--berry-dim);}
-  .items-section{padding:24px 26px 4px; border-top:1px solid var(--parchment-dim);}
-  .items-title{font-size:11.5px; color:#8a7a54; letter-spacing:.04em; margin-bottom:14px; text-transform:uppercase; font-family:'Space Mono',monospace;}
-  .items-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:10px; padding-bottom:20px;}
-  .item-slot{background:var(--parchment-dim); border-radius:10px; padding:8px; text-align:center; position:relative; cursor:pointer; border:1px solid transparent; transition:border-color .15s ease, transform .15s ease;}
-  .item-slot:hover{border-color:var(--gold); transform:translateY(-2px);}
+
+  /* ---- 상단 네비게이션 ---- */
+  .navbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; gap:20px;
+    padding:14px 24px; background:rgba(10,14,22,0.82); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:8px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; white-space:nowrap;}
+  .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--neon-cyan); box-shadow:0 0 10px var(--neon-cyan);}
+  .brand span{background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .nav-search{flex:1; max-width:460px; display:flex; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:6px;}
+  .nav-search input{flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:14px; padding:8px 10px;}
+  .nav-search input::placeholder{color:var(--text-faint);}
+  .nav-search button{background:linear-gradient(135deg,var(--neon-cyan),var(--neon-purple)); border:none; color:#081018; font-weight:700; font-size:13px; padding:0 18px; border-radius:8px; cursor:pointer; transition:opacity .15s ease;}
+  .nav-search button:hover{opacity:0.88;}
+  .nav-search button:disabled{opacity:0.5; cursor:default;}
+  .nav-menu{display:flex; gap:4px; margin-left:auto;}
+  .nav-menu a{font-size:13px; color:var(--text-dim); text-decoration:none; padding:8px 12px; border-radius:8px;}
+  .nav-menu a:hover{color:var(--text); background:var(--panel);}
+
+  @media (max-width:760px){
+    .navbar{flex-wrap:wrap;}
+    .nav-menu{display:none;}
+    .nav-search{max-width:none; order:3; width:100%;}
+  }
+
+  main{max-width:840px; margin:0 auto; padding:36px 20px 100px; min-height:280px;}
+  .empty-state, .loading{text-align:center; color:var(--text-faint); font-size:14px; padding:80px 20px;}
+  .not-found{text-align:center; padding:60px 20px;}
+  .not-found .big{font-family:'Space Grotesk',sans-serif; font-size:20px; color:var(--danger); margin-bottom:8px;}
+
+  /* ---- 캐릭터 헤더 카드 ---- */
+  .char-card{background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; animation:riseIn .45s cubic-bezier(.16,1,.3,1);}
+  @keyframes riseIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+  @media (prefers-reduced-motion: reduce){.char-card{animation:none;}}
+  .char-head{display:flex; align-items:center; gap:20px; padding:26px 28px; position:relative; background:linear-gradient(135deg, rgba(51,224,255,0.06), rgba(167,139,250,0.06));}
+  .char-avatar-wrap{width:74px; height:96px; background:var(--panel-2); border-radius:14px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
+  .char-avatar-wrap img{width:56px; height:76px; object-fit:contain; image-rendering:pixelated;}
+  .char-info .world-tag{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.14em; color:var(--neon-cyan); text-transform:uppercase;}
+  .char-info .char-name{font-family:'Space Grotesk',sans-serif; font-size:25px; font-weight:700; margin:4px 0 3px;}
+  .char-info .char-job{font-size:13.5px; color:var(--text-dim);}
+  .guild-tag{margin-left:auto; text-align:right; font-size:11.5px; color:var(--text-faint); flex-shrink:0;}
+  .guild-tag b{display:block; color:var(--text); font-size:13.5px; margin-top:2px;}
+  .tier-badge{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:20px; margin-top:10px; font-family:'Space Mono',monospace; letter-spacing:.03em;}
+
+  /* ---- 탭 ---- */
+  .tabs{display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,0.015);}
+  .tab-btn{background:none; border:none; color:var(--text-faint); font-size:13.5px; font-weight:600; padding:14px 18px; cursor:pointer; position:relative; font-family:'Pretendard',sans-serif;}
+  .tab-btn.active{color:var(--text);}
+  .tab-btn.active::after{content:''; position:absolute; left:14px; right:14px; bottom:-1px; height:2px; background:linear-gradient(90deg,var(--neon-cyan),var(--neon-purple)); border-radius:2px;}
+  .tab-btn:hover{color:var(--text);}
+  .tab-panel{display:none; padding:26px 28px 30px;}
+  .tab-panel.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
+
+  /* ---- 스탯 탭 ---- */
+  .stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+  .stat-box{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:18px 20px;}
+  .stat-box .label{font-size:11px; color:var(--text-faint); margin-bottom:8px; font-family:'Space Mono',monospace; letter-spacing:.04em; text-transform:uppercase;}
+  .stat-box .value{font-family:'Space Mono',monospace; font-size:21px; font-weight:700;}
+  .stat-box .value.cyan{color:var(--neon-cyan);}
+  .stat-box .value.pink{color:var(--neon-pink);}
+  .stat-box .value.purple{color:var(--neon-purple);}
+  .stat-box .value.green{color:var(--neon-green);}
+
+  /* ---- 장비 탭 ---- */
+  .items-hint{font-size:11.5px; color:var(--text-faint); margin-bottom:16px; font-family:'Space Mono',monospace; letter-spacing:.02em;}
+  .items-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(70px, 1fr)); gap:10px;}
+  .item-slot{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:9px; text-align:center; position:relative; cursor:pointer; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;}
+  .item-slot:hover{border-color:var(--neon-cyan); transform:translateY(-2px); box-shadow:0 8px 20px -8px rgba(51,224,255,0.35);}
   .item-slot img{width:100%; aspect-ratio:1; object-fit:contain; image-rendering:pixelated; pointer-events:none;}
-  .item-slot .item-part{font-size:9px; color:#8a7a54; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;}
-  .item-slot-tooltip{position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--parchment); font-size:10.5px; padding:4px 8px; border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s ease; margin-bottom:6px; z-index:5;}
-  .item-slot:hover .item-slot-tooltip{opacity:1;}
-  .no-items{font-size:12.5px; color:#8a7a54; padding-bottom:20px;}
-  .card-bottom{padding:22px 30px 28px; border-top:1px solid var(--parchment-dim); font-size:12.5px; color:#8a7a54;}
-  footer{text-align:center; padding:30px 20px 50px; font-size:11.5px; color:rgba(135,168,147,.5);}
+  .item-slot .item-part{font-size:9px; color:var(--text-faint); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;}
+  .no-items{font-size:12.5px; color:var(--text-faint); padding:20px 0;}
+
+  footer{text-align:center; padding:30px 20px 50px; font-size:11.5px; color:var(--text-faint);}
 
   /* ---- 아이템 상세 모달 ---- */
   .modal-overlay{
-    position:fixed; inset:0; background:rgba(10,18,14,0.72); backdrop-filter:blur(3px);
+    position:fixed; inset:0; background:rgba(4,7,12,0.75); backdrop-filter:blur(4px);
     display:flex; align-items:center; justify-content:center; padding:20px; z-index:100;
     opacity:0; pointer-events:none; transition:opacity .18s ease;
   }
   .modal-overlay.open{opacity:1; pointer-events:auto;}
   .item-modal{
-    background:linear-gradient(180deg,#241a10,#160f0a); color:var(--parchment);
-    border:1px solid rgba(201,162,39,0.35); border-radius:18px; max-width:400px; width:100%;
-    max-height:82vh; overflow-y:auto; box-shadow:0 40px 80px -20px rgba(0,0,0,0.7);
+    background:var(--bg-elev); color:var(--text);
+    border:1px solid var(--line-strong); border-radius:18px; max-width:400px; width:100%;
+    max-height:82vh; overflow-y:auto; box-shadow:0 40px 80px -20px rgba(0,0,0,0.6);
     transform:translateY(10px) scale(.97); transition:transform .18s ease;
   }
   .modal-overlay.open .item-modal{transform:translateY(0) scale(1);}
-  .item-modal-head{display:flex; gap:14px; align-items:center; padding:22px 22px 16px; border-bottom:1px solid rgba(246,236,210,0.1);}
-  .item-modal-head img{width:52px; height:52px; object-fit:contain; image-rendering:pixelated; background:rgba(246,236,210,0.06); border-radius:10px; padding:6px;}
-  .item-modal-head .name{font-family:'Gowun Batang',serif; font-size:18px; font-weight:700; color:var(--gold-bright); line-height:1.3;}
-  .item-modal-head .part{font-size:11.5px; color:var(--sage); margin-top:3px;}
-  .modal-close{margin-left:auto; background:none; border:none; color:rgba(246,236,210,0.5); font-size:20px; cursor:pointer; line-height:1; padding:4px;}
-  .modal-close:hover{color:var(--parchment);}
+  .item-modal-head{display:flex; gap:14px; align-items:center; padding:22px 22px 16px; border-bottom:1px solid var(--line);}
+  .item-modal-head img{width:52px; height:52px; object-fit:contain; image-rendering:pixelated; background:var(--panel-2); border-radius:10px; padding:6px;}
+  .item-modal-head .name{font-family:'Space Grotesk',sans-serif; font-size:17px; font-weight:700; color:var(--neon-cyan); line-height:1.3;}
+  .item-modal-head .part{font-size:11.5px; color:var(--text-faint); margin-top:3px;}
+  .modal-close{margin-left:auto; background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; line-height:1; padding:4px;}
+  .modal-close:hover{color:var(--text);}
   .item-modal-body{padding:18px 22px 24px;}
   .item-section{margin-bottom:16px;}
   .item-section:last-child{margin-bottom:0;}
-  .item-section-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:rgba(246,236,210,0.4); margin-bottom:8px;}
-  .item-section-title.pot{color:#c48fe0;}
-  .item-section-title.add-pot{color:#7fc9e0;}
-  .item-line{font-size:13px; line-height:1.7; color:var(--parchment-dim);}
-  .item-line.potential{color:#dcb8f0;}
-  .item-line.add-potential{color:#a9dcec;}
+  .item-section-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px;}
+  .item-section-title.pot{color:var(--neon-purple);}
+  .item-section-title.add-pot{color:var(--neon-cyan);}
+  .item-line{font-size:13px; line-height:1.7; color:var(--text-dim);}
+  .item-line.potential{color:#dcc4ff;}
+  .item-line.add-potential{color:#b8ecff;}
   .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2px;}
-  .badge{font-family:'Space Mono',monospace; font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(246,236,210,0.08); color:var(--gold-bright); border:1px solid rgba(201,162,39,0.3);}
+  .badge{font-family:'Space Mono',monospace; font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(51,224,255,0.1); color:var(--neon-cyan); border:1px solid rgba(51,224,255,0.28);}
   .grade-tag{font-size:11px; padding:2px 8px; border-radius:6px; margin-left:6px; font-family:'Space Mono',monospace;}
-  .item-desc{font-size:12px; color:rgba(246,236,210,0.45); line-height:1.6; font-style:italic; margin-top:2px;}
-  .no-detail{font-size:12.5px; color:rgba(246,236,210,0.4); padding:6px 0;}
+  .item-desc{font-size:12px; color:var(--text-faint); line-height:1.6; font-style:italic; margin-top:2px;}
+  .no-detail{font-size:12.5px; color:var(--text-faint); padding:6px 0;}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="eyebrow">MAPLE ARCHIVE</div>
-  <h1>메이플 <span>기록실</span></h1>
-  <p class="sub">모험을 검색하세요. 캐릭터 닉네임을 입력하면 실시간 레벨, 직업, 전투력을 확인할 수 있어요.</p>
-</header>
-
-<div class="search-wrap">
-  <div class="search-box">
+<div class="navbar">
+  <div class="brand"><span class="dot"></span><span>메이플 기록실</span></div>
+  <div class="nav-search">
     <input id="searchInput" type="text" placeholder="캐릭터 닉네임을 입력하세요" autocomplete="off">
     <button id="searchBtn">검색</button>
   </div>
-  <div class="hint">넥슨 오픈 API와 실시간으로 연동됩니다.</div>
+  <div class="nav-menu">
+    <a href="#">랭킹</a>
+    <a href="#">가이드</a>
+  </div>
 </div>
 
 <main id="main">
-  <div class="empty-state">닉네임을 입력하고 검색을 눌러보세요 🍁</div>
+  <div class="empty-state">닉네임을 입력하고 검색을 눌러보세요</div>
 </main>
 
 <div class="modal-overlay" id="itemModalOverlay">
@@ -222,7 +270,7 @@ let currentItems = [];
 
 async function runSearch(){
   const q = input.value.trim();
-  if(!q){ main.innerHTML = '<div class="empty-state">닉네임을 입력하고 검색을 눌러보세요 🍁</div>'; return; }
+  if(!q){ main.innerHTML = '<div class="empty-state">닉네임을 입력하고 검색을 눌러보세요</div>'; return; }
 
   btn.disabled = true;
   main.innerHTML = '<div class="loading">모험가를 찾는 중...</div>';
@@ -234,7 +282,7 @@ async function runSearch(){
     if(!res.ok){
       main.innerHTML = \`<div class="not-found">
         <div class="big">\${escapeHtml(data.error || '오류가 발생했습니다')}</div>
-        <pre style="text-align:left; white-space:pre-wrap; font-size:11px; color:#c9a227; background:rgba(0,0,0,0.3); padding:14px; border-radius:8px; margin-top:16px; max-width:500px; margin-left:auto; margin-right:auto;">status: \${escapeHtml(String(data.debug_status))}
+        <pre style="text-align:left; white-space:pre-wrap; font-size:11px; color:#8a94a6; background:rgba(255,255,255,0.03); padding:14px; border-radius:8px; margin-top:16px; max-width:500px; margin-left:auto; margin-right:auto; border:1px solid rgba(255,255,255,0.07);">status: \${escapeHtml(String(data.debug_status))}
 code: \${escapeHtml(String(data.debug_code))}
 raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
       </div>\`;
@@ -244,37 +292,68 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
     currentItems = data.items || [];
 
     const itemsHtml = (currentItems.length)
-      ? \`<div class="items-section">
-          <div class="items-title">장착 아이템 (탭하면 상세정보)</div>
-          <div class="items-grid">
+      ? \`<div class="items-hint">탭하면 상세 옵션을 볼 수 있어요</div>
+         <div class="items-grid">
             \${currentItems.map((it, idx) => \`
               <div class="item-slot" data-idx="\${idx}">
-                <div class="item-slot-tooltip">\${escapeHtml(it.name)}</div>
                 <img src="\${it.icon}" alt="\${escapeHtml(it.name)}" loading="lazy">
                 <div class="item-part">\${escapeHtml(it.part)}</div>
               </div>\`).join('')}
-          </div>
-        </div>\`
-      : \`<div class="items-section"><div class="no-items">장착 중인 아이템 정보가 없어요.</div></div>\`;
+          </div>\`
+      : \`<div class="no-items">장착 중인 아이템 정보가 없어요.</div>\`;
+
+    const tier = data.tier;
 
     main.innerHTML = \`
-      <div class="card">
-        <div class="card-top">
-          <div class="world-tag">\${escapeHtml(data.world)} 월드</div>
-          <div class="char-name">\${escapeHtml(data.name)}</div>
-          <div class="char-job">\${escapeHtml(data.job)}</div>
+      <div class="char-card">
+        <div class="char-head">
+          <div class="char-avatar-wrap">\${data.image ? \`<img src="\${data.image}" alt="\${escapeHtml(data.name)}">\` : ''}</div>
+          <div class="char-info">
+            <div class="world-tag">\${escapeHtml(data.world)} 월드</div>
+            <div class="char-name">\${escapeHtml(data.name)}</div>
+            <div class="char-job">\${escapeHtml(data.job)} · Lv.\${data.level}</div>
+            <div class="tier-badge" style="color:\${tier.color}; background:\${tier.color}1a; border:1px solid \${tier.color}44;">\${tier.name} 티어</div>
+          </div>
           <div class="guild-tag">길드<b>\${escapeHtml(data.guild)}</b></div>
-          \${data.image ? \`<img class="char-avatar" src="\${data.image}" alt="\${escapeHtml(data.name)}">\` : ''}
         </div>
-        <div class="stat-grid">
-          <div class="stat"><div class="label">레벨</div><div class="value">\${data.level}</div></div>
-          <div class="stat"><div class="label">전투력</div><div class="value">\${data.power}</div></div>
-          <div class="stat"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
-          <div class="stat"><div class="label">인기도</div><div class="value">\${data.popularity}</div></div>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="summary">요약</button>
+          <button class="tab-btn" data-tab="stat">스탯</button>
+          <button class="tab-btn" data-tab="items">장비</button>
         </div>
-        \${itemsHtml}
-        <div class="card-bottom">넥슨 오픈 API 실시간 조회 결과</div>
+
+        <div class="tab-panel active" data-panel="summary">
+          <div class="stat-grid">
+            <div class="stat-box"><div class="label">레벨</div><div class="value cyan">\${data.level}</div></div>
+            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${data.power}</div></div>
+            <div class="stat-box"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
+            <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="stat">
+          <div class="stat-grid">
+            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${data.power}</div></div>
+            <div class="stat-box"><div class="label">티어</div><div class="value" style="color:\${tier.color}">\${tier.name}</div></div>
+            <div class="stat-box"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
+            <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-panel="items">
+          \${itemsHtml}
+        </div>
       </div>\`;
+
+    main.querySelectorAll('.tab-btn').forEach(tb => {
+      tb.addEventListener('click', () => {
+        main.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+        main.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+        tb.classList.add('active');
+        main.querySelector(\`.tab-panel[data-panel="\${tb.dataset.tab}"]\`).classList.add('active');
+      });
+    });
 
     main.querySelectorAll('.item-slot').forEach(el => {
       el.addEventListener('click', () => openItemModal(currentItems[Number(el.dataset.idx)]));
@@ -288,8 +367,8 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
 
 function potentialGradeColor(grade){
   const map = {
-    '레어':'color:#8fc7ff;', '에픽':'color:#c48fe0;',
-    '유니크':'color:#e6c14f;', '레전드리':'color:#7ee08f;'
+    '레어':'color:#5ec9ff;', '에픽':'color:#a78bfa;',
+    '유니크':'color:#ffd24f;', '레전드리':'color:#4fe0c9;'
   };
   return map[grade] || 'color:#ccc;';
 }
@@ -299,7 +378,6 @@ function openItemModal(it){
 
   let sectionsHtml = '';
 
-  // 스타포스 / 착용 레벨 뱃지
   const badges = [];
   if(it.starforce && Number(it.starforce) > 0) badges.push(\`⭐ \${it.starforce}성 강화\`);
   if(badges.length){
@@ -410,6 +488,7 @@ app.get('/api/character/:name', async (req, res) => {
     ]);
 
     const combatPowerStat = stat.final_stat?.find(s => s.stat_name === '\uc804\ud22c\ub825');
+    const power = combatPowerStat ? combatPowerStat.stat_value : 0;
 
     let items = [];
     if (itemEquip && Array.isArray(itemEquip.item_equipment)) {
@@ -437,9 +516,10 @@ app.get('/api/character/:name', async (req, res) => {
       guild: basic.character_guild_name || '\uc5c6\uc74c',
       exp_rate: basic.character_exp_rate,
       image: basic.character_image,
-      power: combatPowerStat ? combatPowerStat.stat_value : '\uc815\ubcf4 \uc5c6\uc74c',
+      power: power || '\uc815\ubcf4 \uc5c6\uc74c',
       popularity: popularity.popularity,
-      items: items
+      items: items,
+      tier: getTier(power)
     });
   } catch (err) {
     console.error('[ERROR]', err.status, err.code, JSON.stringify(err.rawBody));
