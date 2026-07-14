@@ -226,25 +226,26 @@ const PAGE_HTML = `<!DOCTYPE html>
 
   /* ---- 요약 탭 : 주요 장비 카드 ---- */
   .summary-section-title{font-size:12px; font-weight:700; color:var(--text-dim); margin:22px 0 12px; display:flex; align-items:center; gap:6px;}
-  .gear-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(148px,1fr)); gap:10px;}
-  .gear-card{background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:12px; cursor:pointer; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;}
+  .gear-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:8px; align-items:stretch;}
+  .gear-card{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:9px 8px; cursor:pointer; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease; display:flex; flex-direction:column;}
   .gear-card:hover{border-color:var(--grade-color, var(--neon-cyan)); transform:translateY(-2px); box-shadow:0 8px 20px -8px rgba(51,224,255,0.25);}
-  .gear-card-top{display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:8px; min-height:18px;}
-  .gear-badge{font-family:'Space Mono',monospace; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; white-space:nowrap;}
+  .gear-card-top{display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:6px; min-height:16px;}
+  .gear-badge{font-family:'Space Mono',monospace; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:20px; white-space:nowrap;}
   .gear-badge-sf{background:rgba(255,216,61,0.12); color:#ffd83d; border:1px solid rgba(255,216,61,0.3);}
-  .gear-badge-grade{color:#04140f; padding:2px 8px;}
-  .gear-card-icon{display:flex; justify-content:center; margin-bottom:8px;}
-  .gear-card-icon img{width:44px; height:44px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:8px; padding:5px; border:2px solid var(--grade-color, var(--line-strong));}
-  .gear-card-name{font-size:11.5px; font-weight:700; text-align:center; color:var(--text); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gear-badge-grade{color:#04140f; padding:1px 7px;}
+  .gear-card-icon{display:flex; justify-content:center; margin-bottom:6px;}
+  .gear-card-icon img{width:38px; height:38px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:8px; padding:4px; border:2px solid var(--grade-color, var(--line-strong));}
+  .gear-card-name{font-size:11px; font-weight:700; text-align:center; color:var(--text); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .gear-card-part{font-size:9.5px; color:var(--text-faint); text-align:center; margin-top:-6px; margin-bottom:8px;}
-  .gear-card-stats{display:flex; flex-direction:column; gap:3px; min-height:16px;}
-  .gear-stat-line{font-size:10.5px; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center;}
+  .gear-card-stats{display:flex; flex-direction:column; gap:1px; flex:1;}
+  .gear-stat-line{font-size:9.5px; line-height:1.32; white-space:normal; word-break:keep-all; text-align:center;}
   .gear-stat-line b{font-weight:700;}
-  .gear-stat-line.main{color:var(--text-dim);}
+  .gear-stat-line.main{color:var(--text-dim); margin-bottom:2px; padding-bottom:2px; border-bottom:1px dashed var(--line);}
   .gear-stat-line.dim{color:var(--text-faint); font-style:italic;}
   @media (max-width:480px){
-    .gear-grid{grid-template-columns:repeat(auto-fill, minmax(118px,1fr)); gap:8px;}
-    .gear-card{padding:9px;}
+    .gear-grid{grid-template-columns:repeat(auto-fill, minmax(108px,1fr)); gap:6px;}
+    .gear-card{padding:7px 6px;}
+    .gear-stat-line{font-size:9px;}
   }
 
   /* ---- 장비 탭 ---- */
@@ -406,8 +407,8 @@ function gearCardHtml(idx, it){
 
   // 잠재옵션 우선, 없으면 에디셔널 잠재옵션으로 대체, 각 2줄까지만 표시
   let keyLines = [];
-  if(it.potential && it.potential.lines && it.potential.lines.length) keyLines = it.potential.lines.slice(0, 2);
-  else if(it.addPotential && it.addPotential.lines && it.addPotential.lines.length) keyLines = it.addPotential.lines.slice(0, 2);
+  if(it.potential && it.potential.lines && it.potential.lines.length) keyLines = it.potential.lines.slice(0, 3);
+  else if(it.addPotential && it.addPotential.lines && it.addPotential.lines.length) keyLines = it.addPotential.lines.slice(0, 3);
 
   const totalLine = (it.totalOption && it.totalOption.length) ? it.totalOption[0] : null;
   const hasNothing = !totalLine && keyLines.length === 0;
