@@ -64,7 +64,7 @@ function formatOptionObject(opt) {
     const label = STAT_LABELS[key];
     if (!label) return;
     const isRate = key.endsWith('_rate') || ['boss_damage', 'ignore_monster_armor', 'all_stat', 'damage', 'speed', 'jump'].includes(key);
-    out.push(`${label} +${val}${isRate ? '%' : ''}`);
+    out.push(`${label} : <b>+${val}${isRate ? '%' : ''}</b>`);
   });
   return out;
 }
@@ -159,8 +159,8 @@ const PAGE_HTML = `<!DOCTYPE html>
   @keyframes riseIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
   @media (prefers-reduced-motion: reduce){.char-card{animation:none;}}
   .char-head{display:flex; align-items:center; gap:20px; padding:26px 28px; position:relative; background:linear-gradient(135deg, rgba(51,224,255,0.06), rgba(167,139,250,0.06));}
-  .char-avatar-wrap{width:74px; height:96px; background:var(--panel-2); border-radius:14px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
-  .char-avatar-wrap img{width:56px; height:76px; object-fit:contain; image-rendering:pixelated;}
+  .char-avatar-wrap{width:118px; height:150px; background:var(--panel-2); border-radius:16px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
+  .char-avatar-wrap img{width:98px; height:128px; object-fit:contain; image-rendering:pixelated;}
   .char-info .world-tag{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.14em; color:var(--neon-cyan); text-transform:uppercase;}
   .char-info .char-name{font-family:'Space Grotesk',sans-serif; font-size:25px; font-weight:700; margin:4px 0 3px;}
   .char-info .char-job{font-size:13.5px; color:var(--text-dim);}
@@ -211,26 +211,29 @@ const PAGE_HTML = `<!DOCTYPE html>
     border:1px solid var(--line-strong); border-radius:18px; max-width:400px; width:100%;
     max-height:82vh; overflow-y:auto; box-shadow:0 40px 80px -20px rgba(0,0,0,0.6);
     transform:translateY(10px) scale(.97); transition:transform .18s ease;
+    position:relative;
   }
   .modal-overlay.open .item-modal{transform:translateY(0) scale(1);}
-  .item-modal-head{display:flex; gap:14px; align-items:center; padding:22px 22px 16px; border-bottom:1px solid var(--line);}
-  .item-modal-head img{width:52px; height:52px; object-fit:contain; image-rendering:pixelated; background:var(--panel-2); border-radius:10px; padding:6px;}
-  .item-modal-head .name{font-family:'Space Grotesk',sans-serif; font-size:17px; font-weight:700; color:var(--neon-cyan); line-height:1.3;}
-  .item-modal-head .part{font-size:11.5px; color:var(--text-faint); margin-top:3px;}
-  .modal-close{margin-left:auto; background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; line-height:1; padding:4px;}
+  .modal-close{position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-faint); font-size:16px; cursor:pointer; line-height:1; width:30px; height:30px; border-radius:50%; z-index:2;}
   .modal-close:hover{color:var(--text);}
+  .item-modal-icon-wrap{display:flex; justify-content:center; padding:30px 22px 6px;}
+  .item-modal-icon-wrap img{width:104px; height:104px; object-fit:contain; image-rendering:pixelated; background:var(--panel-2); border-radius:16px; padding:12px; border:2px solid var(--icon-border, var(--neon-cyan)); box-shadow:0 0 24px var(--icon-glow, rgba(51,224,255,0.25));}
+  .item-modal-title{text-align:center; padding:12px 22px 20px; border-bottom:1px solid var(--line);}
+  .item-modal-title .name{font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; color:var(--neon-cyan); line-height:1.3;}
+  .item-modal-title .grade{font-size:12px; color:var(--text-faint); margin-top:5px;}
   .item-modal-body{padding:18px 22px 24px;}
   .item-section{margin-bottom:16px;}
   .item-section:last-child{margin-bottom:0;}
-  .item-section-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px;}
+  .item-section-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
   .item-section-title.pot{color:var(--neon-purple);}
   .item-section-title.add-pot{color:var(--neon-cyan);}
-  .item-line{font-size:13px; line-height:1.7; color:var(--text-dim);}
+  .grade-chip{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; background:var(--neon-green); color:#04140f; font-size:10px; font-weight:800;}
+  .item-line{font-size:13.5px; line-height:2; color:var(--text-dim); padding:2px 0;}
+  .item-line b{color:var(--text); font-family:'Space Mono',monospace;}
   .item-line.potential{color:#dcc4ff;}
   .item-line.add-potential{color:#b8ecff;}
   .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2px;}
   .badge{font-family:'Space Mono',monospace; font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(51,224,255,0.1); color:var(--neon-cyan); border:1px solid rgba(51,224,255,0.28);}
-  .grade-tag{font-size:11px; padding:2px 8px; border-radius:6px; margin-left:6px; font-family:'Space Mono',monospace;}
   .item-desc{font-size:12px; color:var(--text-faint); line-height:1.6; font-style:italic; margin-top:2px;}
   .no-detail{font-size:12.5px; color:var(--text-faint); padding:6px 0;}
 </style>
@@ -376,51 +379,54 @@ function potentialGradeColor(grade){
 function openItemModal(it){
   if(!it) return;
 
+  const overallGrade = (it.potential && it.potential.grade) || null;
+  const borderColorMap = {
+    '레어':'#5ec9ff', '에픽':'#a78bfa', '유니크':'#ffd24f', '레전드리':'#4fe0c9'
+  };
+  const iconBorder = overallGrade ? (borderColorMap[overallGrade] || '#33e0ff') : '#33e0ff';
+
   let sectionsHtml = '';
 
-  const badges = [];
-  if(it.starforce && Number(it.starforce) > 0) badges.push(\`⭐ \${it.starforce}성 강화\`);
-  if(badges.length){
-    sectionsHtml += \`<div class="item-section"><div class="badge-row">\${badges.map(b => \`<span class="badge">\${escapeHtml(b)}</span>\`).join('')}</div></div>\`;
+  if(it.starforce && Number(it.starforce) > 0){
+    sectionsHtml += \`<div class="item-section"><div class="badge-row"><span class="badge">⭐ \${it.starforce}성 강화</span></div></div>\`;
   }
 
+  // 장비분류 + 최종 옵션(기본+추가+잠재 합산)을 한 리스트로
+  const infoLines = [];
+  infoLines.push(\`장비분류 : <b>\${escapeHtml(it.part || '-')}</b>\`);
   if(it.totalOption && it.totalOption.length){
-    sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title">최종 옵션 (기본 + 추가 + 잠재 합산)</div>
-      \${it.totalOption.map(l => \`<div class="item-line">\${escapeHtml(l)}</div>\`).join('')}
-    </div>\`;
+    it.totalOption.forEach(l => infoLines.push(l));
   }
+  sectionsHtml += \`<div class="item-section">
+    \${infoLines.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
+  </div>\`;
 
   if(it.baseOption && it.baseOption.length){
     sectionsHtml += \`<div class="item-section">
       <div class="item-section-title">기본 옵션</div>
-      \${it.baseOption.map(l => \`<div class="item-line">\${escapeHtml(l)}</div>\`).join('')}
+      \${it.baseOption.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
     </div>\`;
   }
 
   if(it.addOption && it.addOption.length){
     sectionsHtml += \`<div class="item-section">
       <div class="item-section-title">추가 옵션 (주문서)</div>
-      \${it.addOption.map(l => \`<div class="item-line">\${escapeHtml(l)}</div>\`).join('')}
+      \${it.addOption.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
     </div>\`;
   }
 
   if(it.potential && (it.potential.grade || it.potential.lines.length)){
     sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title pot">잠재능력 \${it.potential.grade ? \`<span style="\${potentialGradeColor(it.potential.grade)}">(\${escapeHtml(it.potential.grade)})</span>\` : ''}</div>
+      <div class="item-section-title pot"><span class="grade-chip">L</span> 잠재옵션 \${it.potential.grade ? \`<span style="\${potentialGradeColor(it.potential.grade)}">(\${escapeHtml(it.potential.grade)})</span>\` : ''}</div>
       \${it.potential.lines.length ? it.potential.lines.map(l => \`<div class="item-line potential">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
     </div>\`;
   }
 
   if(it.addPotential && (it.addPotential.grade || it.addPotential.lines.length)){
     sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title add-pot">에디셔널 잠재능력 \${it.addPotential.grade ? \`<span style="\${potentialGradeColor(it.addPotential.grade)}">(\${escapeHtml(it.addPotential.grade)})</span>\` : ''}</div>
+      <div class="item-section-title add-pot"><span class="grade-chip" style="background:var(--neon-cyan)">L</span> 에디셔널 잠재옵션 \${it.addPotential.grade ? \`<span style="\${potentialGradeColor(it.addPotential.grade)}">(\${escapeHtml(it.addPotential.grade)})</span>\` : ''}</div>
       \${it.addPotential.lines.length ? it.addPotential.lines.map(l => \`<div class="item-line add-potential">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
     </div>\`;
-  }
-
-  if(!sectionsHtml){
-    sectionsHtml = '<div class="no-detail">이 장비에는 표시할 상세 옵션 정보가 없어요.</div>';
   }
 
   if(it.description){
@@ -428,13 +434,13 @@ function openItemModal(it){
   }
 
   itemModal.innerHTML = \`
-    <div class="item-modal-head">
+    <button class="modal-close" id="modalCloseBtn">✕</button>
+    <div class="item-modal-icon-wrap" style="--icon-border:\${iconBorder}; --icon-glow:\${iconBorder}40;">
       <img src="\${it.icon}" alt="\${escapeHtml(it.name)}">
-      <div>
-        <div class="name">\${escapeHtml(it.name)}</div>
-        <div class="part">\${escapeHtml(it.part)}</div>
-      </div>
-      <button class="modal-close" id="modalCloseBtn">✕</button>
+    </div>
+    <div class="item-modal-title">
+      <div class="name">\${escapeHtml(it.name)}</div>
+      \${overallGrade ? \`<div class="grade">(\${escapeHtml(overallGrade)} 아이템)</div>\` : ''}
     </div>
     <div class="item-modal-body">\${sectionsHtml}</div>
   \`;
