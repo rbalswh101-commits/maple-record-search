@@ -164,9 +164,27 @@ const PAGE_HTML = `<!DOCTYPE html>
   }
 
   main{max-width:840px; margin:0 auto; padding:36px 20px 100px; min-height:280px;}
-  .empty-state, .loading{text-align:center; color:var(--text-faint); font-size:14px; padding:80px 20px;}
+  .loading{text-align:center; color:var(--text-faint); font-size:14px; padding:80px 20px;}
   .not-found{text-align:center; padding:60px 20px;}
   .not-found .big{font-family:'Space Grotesk',sans-serif; font-size:20px; color:var(--danger); margin-bottom:8px;}
+
+  /* ---- 빈 화면(메인) 히어로 ---- */
+  .empty-hero{text-align:center; padding:56px 20px 30px; position:relative;}
+  .empty-hero .hero-orb{width:92px; height:92px; margin:0 auto 22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:38px; background:radial-gradient(circle at 35% 30%, rgba(51,224,255,0.24), rgba(167,139,250,0.15) 60%, transparent 75%); border:1px solid var(--line-strong); box-shadow:0 0 40px -8px rgba(51,224,255,0.35); animation:floaty 3.6s ease-in-out infinite;}
+  @keyframes floaty{0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);}}
+  @media (prefers-reduced-motion: reduce){.empty-hero .hero-orb{animation:none;}}
+  .empty-hero .hero-title{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:700; color:var(--text); margin-bottom:8px;}
+  .empty-hero .hero-sub{font-size:13px; color:var(--text-faint); margin-bottom:28px;}
+  .hero-features{display:flex; justify-content:center; gap:10px; flex-wrap:wrap; max-width:520px; margin:0 auto;}
+  .hero-chip{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 16px; font-size:12px; color:var(--text-dim); transition:border-color .15s ease, transform .15s ease;}
+  .hero-chip:hover{border-color:var(--neon-cyan); transform:translateY(-2px);}
+  .hero-chip .chip-icon{font-size:16px;}
+  .hero-chip b{color:var(--text); font-weight:700;}
+  @media (max-width:480px){
+    .empty-hero{padding:40px 16px 20px;}
+    .hero-features{gap:8px;}
+    .hero-chip{padding:10px 12px; font-size:11px;}
+  }
 
   /* ---- 캐릭터 헤더 카드 ---- */
   .char-card{background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; animation:riseIn .45s cubic-bezier(.16,1,.3,1);}
@@ -297,7 +315,16 @@ const PAGE_HTML = `<!DOCTYPE html>
 </div>
 
 <main id="main">
-  <div class="empty-state">닉네임을 입력하고 검색을 눌러보세요</div>
+  <div class="empty-hero">
+    <div class="hero-orb">🍁</div>
+    <div class="hero-title">모험가의 발자취를 찾아보세요</div>
+    <div class="hero-sub">닉네임 하나로 스탯, 장비, 전투력까지 한눈에 확인할 수 있어요</div>
+    <div class="hero-features">
+      <div class="hero-chip"><span class="chip-icon">⚔️</span><span><b>장비</b> 상세 옵션</span></div>
+      <div class="hero-chip"><span class="chip-icon">📊</span><span><b>스탯</b> · 전투력</span></div>
+      <div class="hero-chip"><span class="chip-icon">⭐</span><span><b>스타포스</b> 강화 정보</span></div>
+    </div>
+  </div>
 </main>
 
 <div class="modal-overlay" id="itemModalOverlay">
@@ -366,7 +393,19 @@ function renderStars(sf){
 
 async function runSearch(){
   const q = input.value.trim();
-  if(!q){ main.innerHTML = '<div class="empty-state">닉네임을 입력하고 검색을 눌러보세요</div>'; return; }
+  if(!q){
+    main.innerHTML = \`<div class="empty-hero">
+      <div class="hero-orb">🍁</div>
+      <div class="hero-title">모험가의 발자취를 찾아보세요</div>
+      <div class="hero-sub">닉네임 하나로 스탯, 장비, 전투력까지 한눈에 확인할 수 있어요</div>
+      <div class="hero-features">
+        <div class="hero-chip"><span class="chip-icon">⚔️</span><span><b>장비</b> 상세 옵션</span></div>
+        <div class="hero-chip"><span class="chip-icon">📊</span><span><b>스탯</b> · 전투력</span></div>
+        <div class="hero-chip"><span class="chip-icon">⭐</span><span><b>스타포스</b> 강화 정보</span></div>
+      </div>
+    </div>\`;
+    return;
+  }
 
   btn.disabled = true;
   main.innerHTML = '<div class="loading">모험가를 찾는 중...</div>';
