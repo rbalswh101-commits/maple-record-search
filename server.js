@@ -224,6 +224,29 @@ const PAGE_HTML = `<!DOCTYPE html>
   .stat-box .value.purple{color:var(--neon-purple);}
   .stat-box .value.green{color:var(--neon-green);}
 
+  /* ---- 요약 탭 : 주요 장비 카드 ---- */
+  .summary-section-title{font-size:12px; font-weight:700; color:var(--text-dim); margin:22px 0 12px; display:flex; align-items:center; gap:6px;}
+  .gear-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(148px,1fr)); gap:10px;}
+  .gear-card{background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:12px; cursor:pointer; transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;}
+  .gear-card:hover{border-color:var(--grade-color, var(--neon-cyan)); transform:translateY(-2px); box-shadow:0 8px 20px -8px rgba(51,224,255,0.25);}
+  .gear-card-top{display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:8px; min-height:18px;}
+  .gear-badge{font-family:'Space Mono',monospace; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; white-space:nowrap;}
+  .gear-badge-sf{background:rgba(255,216,61,0.12); color:#ffd83d; border:1px solid rgba(255,216,61,0.3);}
+  .gear-badge-grade{color:#04140f; padding:2px 8px;}
+  .gear-card-icon{display:flex; justify-content:center; margin-bottom:8px;}
+  .gear-card-icon img{width:44px; height:44px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:8px; padding:5px; border:2px solid var(--grade-color, var(--line-strong));}
+  .gear-card-name{font-size:11.5px; font-weight:700; text-align:center; color:var(--text); margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gear-card-part{font-size:9.5px; color:var(--text-faint); text-align:center; margin-top:-6px; margin-bottom:8px;}
+  .gear-card-stats{display:flex; flex-direction:column; gap:3px; min-height:16px;}
+  .gear-stat-line{font-size:10.5px; line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center;}
+  .gear-stat-line b{font-weight:700;}
+  .gear-stat-line.main{color:var(--text-dim);}
+  .gear-stat-line.dim{color:var(--text-faint); font-style:italic;}
+  @media (max-width:480px){
+    .gear-grid{grid-template-columns:repeat(auto-fill, minmax(118px,1fr)); gap:8px;}
+    .gear-card{padding:9px;}
+  }
+
   /* ---- 장비 탭 ---- */
   .items-hint{font-size:11px; color:var(--text-faint); margin-bottom:14px; font-family:'Space Mono',monospace; letter-spacing:.02em;}
   .items-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(70px, 1fr)); gap:10px;}
@@ -374,6 +397,36 @@ function slotHtml(idx, it){
   </div>\`;
 }
 
+// 요약탭용 : 아이콘 + 잠재능력을 한눈에 보여주는 카드
+function gearCardHtml(idx, it){
+  const overallGrade = (it.potential && it.potential.grade) || (it.addPotential && it.addPotential.grade) || null;
+  const color = overallGrade ? (GRADE_COLOR[overallGrade] || '#8a94a6') : '#8a94a6';
+  const letter = overallGrade ? (GRADE_LETTER[overallGrade] || '') : '';
+  const sf = (it.starforce && Number(it.starforce) > 0) ? Number(it.starforce) : 0;
+
+  // 잠재옵션 우선, 없으면 에디셔널 잠재옵션으로 대체, 각 2줄까지만 표시
+  let keyLines = [];
+  if(it.potential && it.potential.lines && it.potential.lines.length) keyLines = it.potential.lines.slice(0, 2);
+  else if(it.addPotential && it.addPotential.lines && it.addPotential.lines.length) keyLines = it.addPotential.lines.slice(0, 2);
+
+  const totalLine = (it.totalOption && it.totalOption.length) ? it.totalOption[0] : null;
+  const hasNothing = !totalLine && keyLines.length === 0;
+
+  return \`<div class="gear-card" data-idx="\${idx}" style="--grade-color:\${color}">
+    <div class="gear-card-top">
+      \${sf ? \`<span class="gear-badge gear-badge-sf">★\${sf}</span>\` : '<span></span>'}
+      \${letter ? \`<span class="gear-badge gear-badge-grade" style="background:\${color}">\${letter}</span>\` : '<span></span>'}
+    </div>
+    <div class="gear-card-icon"><img src="\${it.icon}" alt="\${escapeHtml(it.name)}" loading="lazy"></div>
+    <div class="gear-card-name">\${escapeHtml(it.name)}</div>
+    <div class="gear-card-stats">
+      \${totalLine ? \`<div class="gear-stat-line main">\${totalLine}</div>\` : ''}
+      \${keyLines.map(l => \`<div class="gear-stat-line" style="color:\${color}">\${escapeHtml(l)}</div>\`).join('')}
+      \${hasNothing ? '<div class="gear-stat-line dim">옵션 정보 없음</div>' : ''}
+    </div>
+  </div>\`;
+}
+
 function renderStars(sf){
   const n = Number(sf) || 0;
   if(n <= 0) return '';
@@ -427,6 +480,11 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
     currentItems = data.items || [];
 
     const slotGroups = buildSlotGroups(currentItems);
+    const gearOrder = [...slotGroups.left, ...slotGroups.right];
+    const gearGridHtml = gearOrder.length
+      ? \`<div class="summary-section-title">⚔️ 주요 장비 잠재능력</div>
+         <div class="gear-grid">\${gearOrder.map(idx => gearCardHtml(idx, currentItems[idx])).join('')}</div>\`
+      : '';
 
     const itemsHtml = (currentItems.length)
       ? \`<div class="items-hint">탭하면 상세 옵션을 볼 수 있어요</div>
@@ -462,6 +520,7 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
             <div class="stat-box"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
             <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
           </div>
+          \${gearGridHtml}
         </div>
 
         <div class="tab-panel" data-panel="stat">
@@ -488,6 +547,9 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
     });
 
     main.querySelectorAll('.item-slot').forEach(el => {
+      el.addEventListener('click', () => openItemModal(currentItems[Number(el.dataset.idx)]));
+    });
+    main.querySelectorAll('.gear-card').forEach(el => {
       el.addEventListener('click', () => openItemModal(currentItems[Number(el.dataset.idx)]));
     });
   }catch(e){
