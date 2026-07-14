@@ -215,6 +215,19 @@ const PAGE_HTML = `<!DOCTYPE html>
   .item-slot .item-part{font-size:9px; color:var(--text-faint); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;}
   .no-items{font-size:12.5px; color:var(--text-faint); padding:20px 0;}
 
+  /* ---- 인게임 장비창 배치 ---- */
+  .equip-layout{display:grid; grid-template-columns:1fr minmax(110px,150px) 1fr; gap:14px; align-items:start; margin-bottom:14px;}
+  .equip-side{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; align-content:start;}
+  .equip-avatar{background:var(--panel-2); border:1px solid var(--line-strong); border-radius:16px; overflow:hidden; aspect-ratio:3/4; display:flex; align-items:center; justify-content:center; align-self:stretch;}
+  .equip-avatar img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated; transform:scale(1.7); transform-origin:center center;}
+  .equip-bottom{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px;}
+  @media (max-width:480px){
+    .equip-layout{grid-template-columns:1fr 84px 1fr; gap:8px;}
+    .equip-side{gap:6px;}
+    .item-slot{padding:6px; border-radius:10px;}
+    .item-slot .item-part{font-size:8px;}
+  }
+
   footer{text-align:center; padding:30px 20px 50px; font-size:11.5px; color:var(--text-faint);}
 
   /* ---- 아이템 상세 모달 ---- */
@@ -234,7 +247,11 @@ const PAGE_HTML = `<!DOCTYPE html>
   .modal-overlay.open .item-modal{transform:translateY(0) scale(1);}
   .modal-close{position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-faint); font-size:16px; cursor:pointer; line-height:1; width:30px; height:30px; border-radius:50%; z-index:2;}
   .modal-close:hover{color:var(--text);}
-  .item-modal-icon-wrap{display:flex; justify-content:center; padding:32px 22px 18px;}
+  .sf-stars{display:flex; flex-direction:column; align-items:center; gap:2px; padding-top:22px;}
+  .sf-star-row{display:flex; gap:2px;}
+  .sf-star{font-size:15px; line-height:1; color:rgba(255,255,255,0.16);}
+  .sf-star.filled{color:#ffd83d; text-shadow:0 0 7px rgba(255,216,61,0.65);}
+  .item-modal-icon-wrap{display:flex; justify-content:center; padding:14px 22px 18px;}
   .item-modal-icon-wrap img{width:108px; height:108px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:16px; padding:12px; border:3px solid var(--icon-border, var(--neon-cyan));}
   .item-modal-title{text-align:center; padding:0 22px 20px;}
   .item-modal-title .name{font-family:'Pretendard',sans-serif; font-size:16.5px; font-weight:700; color:var(--text); line-height:1.3;}
@@ -297,6 +314,53 @@ const itemModal = document.getElementById('itemModal');
 
 let currentItems = [];
 
+// 인게임 장비창처럼 좌/우/하단으로 아이템을 배치하기 위한 슬롯 순서
+const LEFT_SLOTS = ['반지1','반지2','반지3','반지4','펜던트','펜던트2','벨트','훈장','포켓 아이템','뱃지','문장'];
+const RIGHT_SLOTS = ['모자','얼굴장식','눈장식','귀고리','상의','한벌옷','어깨장식','하의','신발','장갑','망토'];
+const BOTTOM_SLOTS = ['무기','보조무기','기계심장','안드로이드'];
+
+function buildSlotGroups(items){
+  const used = new Set();
+  function pick(list){
+    const out = [];
+    list.forEach(slotName => {
+      const idx = items.findIndex((it, i) => it.part === slotName && !used.has(i));
+      if(idx !== -1){ used.add(idx); out.push(idx); }
+    });
+    return out;
+  }
+  const left = pick(LEFT_SLOTS);
+  const right = pick(RIGHT_SLOTS);
+  const bottom = pick(BOTTOM_SLOTS);
+  const rest = items.map((_, i) => i).filter(i => !used.has(i));
+  return { left, right, bottom: bottom.concat(rest) };
+}
+
+function slotHtml(idx, it){
+  return \`<div class="item-slot" data-idx="\${idx}">
+    <img src="\${it.icon}" alt="\${escapeHtml(it.name)}" loading="lazy">
+    <div class="item-part">\${escapeHtml(it.part)}</div>
+  </div>\`;
+}
+
+function renderStars(sf){
+  const n = Number(sf) || 0;
+  if(n <= 0) return '';
+  const totalSlots = Math.max(10, Math.ceil(n / 5) * 5);
+  const rows = totalSlots / 5;
+  let html = '<div class="sf-stars">';
+  for(let r = 0; r < rows; r++){
+    html += '<div class="sf-star-row">';
+    for(let c = 0; c < 5; c++){
+      const idx = r * 5 + c;
+      html += idx < n ? '<span class="sf-star filled">★</span>' : '<span class="sf-star">☆</span>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 async function runSearch(){
   const q = input.value.trim();
   if(!q){ main.innerHTML = '<div class="empty-state">닉네임을 입력하고 검색을 눌러보세요</div>'; return; }
@@ -320,15 +384,16 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
 
     currentItems = data.items || [];
 
+    const slotGroups = buildSlotGroups(currentItems);
+
     const itemsHtml = (currentItems.length)
       ? \`<div class="items-hint">탭하면 상세 옵션을 볼 수 있어요</div>
-         <div class="items-grid">
-            \${currentItems.map((it, idx) => \`
-              <div class="item-slot" data-idx="\${idx}">
-                <img src="\${it.icon}" alt="\${escapeHtml(it.name)}" loading="lazy">
-                <div class="item-part">\${escapeHtml(it.part)}</div>
-              </div>\`).join('')}
-          </div>\`
+         <div class="equip-layout">
+            <div class="equip-side equip-left">\${slotGroups.left.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>
+            <div class="equip-avatar">\${data.image ? \`<img src="\${data.image}" alt="\${escapeHtml(data.name)}">\` : ''}</div>
+            <div class="equip-side equip-right">\${slotGroups.right.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>
+         </div>
+         \${slotGroups.bottom.length ? \`<div class="equip-bottom">\${slotGroups.bottom.map(idx => slotHtml(idx, currentItems[idx])).join('')}</div>\` : ''}\`
       : \`<div class="no-items">장착 중인 아이템 정보가 없어요.</div>\`;
 
     main.innerHTML = \`
@@ -412,9 +477,6 @@ function openItemModal(it){
   if(it.totalOption && it.totalOption.length){
     it.totalOption.forEach(l => infoLines.push(l));
   }
-  if(it.starforce && Number(it.starforce) > 0){
-    infoLines.push(\`강화 단계 : <b>+\${escapeHtml(String(it.starforce))}</b>\`);
-  }
   sectionsHtml += \`<div class="item-section">
     \${infoLines.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
     \${it.totalOption && it.totalOption.length ? \`<div class="opt-legend"><span><i style="background:#3ddc84"></i>추가옵션</span><span><i style="background:#b06bff"></i>주문서</span><span><i style="background:#ffcf3d"></i>스타포스</span></div>\` : ''}
@@ -444,8 +506,11 @@ function openItemModal(it){
     ? \`\${escapeHtml(it.name)} (+\${escapeHtml(String(it.starforce))})\`
     : escapeHtml(it.name);
 
+  const starsHtml = (it.starforce && Number(it.starforce) > 0) ? renderStars(Number(it.starforce)) : '';
+
   itemModal.innerHTML = \`
     <button class="modal-close" id="modalCloseBtn">✕</button>
+    \${starsHtml}
     <div class="item-modal-icon-wrap" style="--icon-border:\${iconBorder};">
       <img src="\${it.icon}" alt="\${escapeHtml(it.name)}">
     </div>
