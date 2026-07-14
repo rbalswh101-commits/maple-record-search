@@ -69,6 +69,29 @@ function formatOptionObject(opt) {
   return out;
 }
 
+// 최종 옵션을 "총합 (기본값 +추가값)" 형태로 만드는 함수
+function formatOptionBreakdown(totalOpt, baseOpt) {
+  if (!totalOpt) return [];
+  const out = [];
+  Object.entries(totalOpt).forEach(([key, val]) => {
+    const numVal = Number(val) || 0;
+    if (!numVal) return;
+    const label = STAT_LABELS[key];
+    if (!label) return;
+    const isRate = key.endsWith('_rate') || ['boss_damage', 'ignore_monster_armor', 'all_stat', 'damage', 'speed', 'jump'].includes(key);
+    const suffix = isRate ? '%' : '';
+    const baseVal = Number((baseOpt && baseOpt[key]) || 0);
+    const delta = numVal - baseVal;
+
+    if (baseVal > 0 && delta !== 0) {
+      out.push(`${label} : <b>+${numVal}${suffix}</b> <span class="opt-detail">( ${baseVal}${suffix} <span class="opt-add">+${delta}${suffix}</span> )</span>`);
+    } else {
+      out.push(`${label} : <b>+${numVal}${suffix}</b>`);
+    }
+  });
+  return out;
+}
+
 function formatPotentialLines(it, prefix) {
   const grade = it[`${prefix}_option_grade`];
   const lines = [it[`${prefix}_option_1`], it[`${prefix}_option_2`], it[`${prefix}_option_3`]].filter(Boolean);
@@ -217,6 +240,8 @@ const PAGE_HTML = `<!DOCTYPE html>
   .grade-chip{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; background:var(--neon-green); color:#04140f; font-size:10px; font-weight:800;}
   .item-line{font-size:13px; line-height:1.9; color:var(--text); padding:1px 0;}
   .item-line b{color:var(--text); font-weight:700;}
+  .item-line .opt-detail{color:var(--text-faint); font-size:12px; font-weight:400;}
+  .item-line .opt-add{color:var(--neon-cyan); font-weight:700;}
   .item-line.potential{color:var(--text); font-size:13px; line-height:1.8;}
   .item-line.add-potential{color:var(--text); font-size:13px; line-height:1.8;}
   .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2px;}
@@ -495,9 +520,7 @@ app.get('/api/character/:name', async (req, res) => {
           icon: it.item_icon,
           description: it.item_description || null,
           starforce: it.starforce || null,
-          totalOption: formatOptionObject(it.item_total_option),
-          baseOption: formatOptionObject(it.item_base_option),
-          addOption: formatOptionObject(it.item_add_option),
+          totalOption: formatOptionBreakdown(it.item_total_option, it.item_base_option),
           potential: formatPotentialLines(it, 'potential'),
           addPotential: formatPotentialLines(it, 'additional_potential')
         }));
