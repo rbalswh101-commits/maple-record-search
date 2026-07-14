@@ -69,8 +69,8 @@ function formatOptionObject(opt) {
   return out;
 }
 
-// 최종 옵션을 "총합 (기본값 +추가값)" 형태로 만드는 함수
-function formatOptionBreakdown(totalOpt, baseOpt) {
+// 최종 옵션을 "총합 (기본값 +추가옵션 +주문서 +스타포스)" 형태로 만드는 함수
+function formatOptionBreakdown(totalOpt, baseOpt, addOpt, starforceOpt) {
   if (!totalOpt) return [];
   const out = [];
   Object.entries(totalOpt).forEach(([key, val]) => {
@@ -80,11 +80,20 @@ function formatOptionBreakdown(totalOpt, baseOpt) {
     if (!label) return;
     const isRate = key.endsWith('_rate') || ['boss_damage', 'ignore_monster_armor', 'all_stat', 'damage', 'speed', 'jump'].includes(key);
     const suffix = isRate ? '%' : '';
-    const baseVal = Number((baseOpt && baseOpt[key]) || 0);
-    const delta = numVal - baseVal;
 
-    if (baseVal > 0 && delta !== 0) {
-      out.push(`${label} : <b>+${numVal}${suffix}</b> <span class="opt-detail">( ${baseVal}${suffix} <span class="opt-add">+${delta}${suffix}</span> )</span>`);
+    const baseVal = Number((baseOpt && baseOpt[key]) || 0);
+    const addVal = Number((addOpt && addOpt[key]) || 0);
+    const sfVal = Number((starforceOpt && starforceOpt[key]) || 0);
+    // 나머지 차이는 주문서/기타 강화분으로 취급 (필드가 없거나 이름이 다를 경우를 대비한 안전장치)
+    const scrollVal = numVal - baseVal - addVal - sfVal;
+
+    const parts = [];
+    if (addVal !== 0) parts.push(`<span class="opt-add">+${addVal}${suffix}</span>`);
+    if (scrollVal !== 0) parts.push(`<span class="opt-scroll">+${scrollVal}${suffix}</span>`);
+    if (sfVal !== 0) parts.push(`<span class="opt-sf">+${sfVal}${suffix}</span>`);
+
+    if (baseVal > 0 && parts.length) {
+      out.push(`${label} : <b>+${numVal}${suffix}</b> <span class="opt-detail">( ${baseVal}${suffix} ${parts.join(' ')} )</span>`);
     } else {
       out.push(`${label} : <b>+${numVal}${suffix}</b>`);
     }
@@ -241,7 +250,12 @@ const PAGE_HTML = `<!DOCTYPE html>
   .item-line{font-size:13px; line-height:1.9; color:var(--text); padding:1px 0;}
   .item-line b{color:var(--text); font-weight:700;}
   .item-line .opt-detail{color:var(--text-faint); font-size:12px; font-weight:400;}
-  .item-line .opt-add{color:var(--neon-cyan); font-weight:700;}
+  .item-line .opt-add{color:#3ddc84; font-weight:700;}
+  .item-line .opt-scroll{color:#b06bff; font-weight:700;}
+  .item-line .opt-sf{color:#ffcf3d; font-weight:700;}
+  .opt-legend{display:flex; gap:14px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
+  .opt-legend span{font-size:10.5px; color:var(--text-faint); display:flex; align-items:center; gap:5px;}
+  .opt-legend i{width:8px; height:8px; border-radius:50%; display:inline-block;}
   .item-line.potential{color:var(--text); font-size:13px; line-height:1.8;}
   .item-line.add-potential{color:var(--text); font-size:13px; line-height:1.8;}
   .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2px;}
@@ -403,6 +417,7 @@ function openItemModal(it){
   }
   sectionsHtml += \`<div class="item-section">
     \${infoLines.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
+    \${it.totalOption && it.totalOption.length ? \`<div class="opt-legend"><span><i style="background:#3ddc84"></i>추가옵션</span><span><i style="background:#b06bff"></i>주문서</span><span><i style="background:#ffcf3d"></i>스타포스</span></div>\` : ''}
   </div>\`;
 
   if(it.potential && (it.potential.grade || it.potential.lines.length)){
@@ -520,7 +535,7 @@ app.get('/api/character/:name', async (req, res) => {
           icon: it.item_icon,
           description: it.item_description || null,
           starforce: it.starforce || null,
-          totalOption: formatOptionBreakdown(it.item_total_option, it.item_base_option),
+          totalOption: formatOptionBreakdown(it.item_total_option, it.item_base_option, it.item_add_option, it.item_starforce_option),
           potential: formatPotentialLines(it, 'potential'),
           addPotential: formatPotentialLines(it, 'additional_potential')
         }));
