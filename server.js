@@ -248,10 +248,10 @@ const PAGE_HTML = `<!DOCTYPE html>
   .modal-overlay.open .item-modal{transform:translateY(0) scale(1);}
   .modal-close{position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-faint); font-size:16px; cursor:pointer; line-height:1; width:30px; height:30px; border-radius:50%; z-index:2;}
   .modal-close:hover{color:var(--text);}
-  .sf-stars{display:flex; flex-direction:column; align-items:center; gap:2px; padding-top:22px;}
-  .sf-star-row{display:flex; gap:2px;}
-  .sf-star{font-size:15px; line-height:1; color:rgba(255,255,255,0.16);}
-  .sf-star.filled{color:#ffd83d; text-shadow:0 0 7px rgba(255,216,61,0.65);}
+  .sf-stars{display:flex; flex-wrap:wrap; justify-content:center; gap:6px 12px; padding:22px 20px 0;}
+  .sf-star-group{display:inline-flex; gap:1px;}
+  .sf-star{font-size:13px; line-height:1; color:rgba(255,255,255,0.16);}
+  .sf-star.filled{color:#ffd83d; text-shadow:0 0 6px rgba(255,216,61,0.6);}
   .item-modal-icon-wrap{display:flex; justify-content:center; padding:14px 22px 18px;}
   .item-modal-icon-wrap img{width:108px; height:108px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:16px; padding:12px; border:3px solid var(--icon-border, var(--neon-cyan));}
   .item-modal-title{text-align:center; padding:0 22px 20px;}
@@ -315,10 +315,9 @@ const itemModal = document.getElementById('itemModal');
 
 let currentItems = [];
 
-// 인게임 장비창처럼 좌/우/하단으로 아이템을 배치하기 위한 슬롯 순서
-const LEFT_SLOTS = ['반지1','반지2','반지3','반지4','펜던트','펜던트2','벨트','훈장','포켓 아이템','뱃지','문장'];
-const RIGHT_SLOTS = ['모자','얼굴장식','눈장식','귀고리','상의','한벌옷','어깨장식','하의','신발','장갑','망토'];
-const BOTTOM_SLOTS = ['무기','보조무기','기계심장','안드로이드'];
+// 인게임 장비창처럼 좌/우로 아이템을 배치하기 위한 슬롯 순서
+const LEFT_SLOTS = ['반지1','반지2','반지3','반지4','펜던트','펜던트2','벨트','훈장','포켓 아이템','뱃지','문장','무기','보조무기'];
+const RIGHT_SLOTS = ['모자','얼굴장식','눈장식','귀고리','상의','한벌옷','어깨장식','하의','신발','장갑','망토','기계심장','안드로이드'];
 
 function buildSlotGroups(items){
   const used = new Set();
@@ -332,9 +331,13 @@ function buildSlotGroups(items){
   }
   const left = pick(LEFT_SLOTS);
   const right = pick(RIGHT_SLOTS);
-  const bottom = pick(BOTTOM_SLOTS);
+  // 위 목록에 없는 부위명이라도 아이템이 하나도 빠지지 않도록 짧은 쪽 컬럼에 채워 넣는다
   const rest = items.map((_, i) => i).filter(i => !used.has(i));
-  return { left, right, bottom: bottom.concat(rest) };
+  rest.forEach(idx => {
+    if(left.length <= right.length) left.push(idx);
+    else right.push(idx);
+  });
+  return { left, right };
 }
 
 function slotHtml(idx, it){
@@ -347,16 +350,15 @@ function slotHtml(idx, it){
 function renderStars(sf){
   const n = Number(sf) || 0;
   if(n <= 0) return '';
-  const totalSlots = Math.max(10, Math.ceil(n / 5) * 5);
-  const rows = totalSlots / 5;
+  const total = 25; // 최대 스타포스 기준으로 길게 늘어지는 바 형태
   let html = '<div class="sf-stars">';
-  for(let r = 0; r < rows; r++){
-    html += '<div class="sf-star-row">';
+  for(let g = 0; g < total; g += 5){
+    html += '<span class="sf-star-group">';
     for(let c = 0; c < 5; c++){
-      const idx = r * 5 + c;
+      const idx = g + c;
       html += idx < n ? '<span class="sf-star filled">★</span>' : '<span class="sf-star">☆</span>';
     }
-    html += '</div>';
+    html += '</span>';
   }
   html += '</div>';
   return html;
