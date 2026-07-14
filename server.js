@@ -76,24 +76,6 @@ function formatPotentialLines(it, prefix) {
   return { grade: grade || null, lines };
 }
 
-// ---- 전투력 티어 산출 ----
-const TIERS = [
-  { name: '챌린저', min: 100000000, color: '#ff5ecb' },
-  { name: '그랜드마스터', min: 30000000, color: '#c15dff' },
-  { name: '마스터', min: 10000000, color: '#8c6bff' },
-  { name: '다이아몬드', min: 3000000, color: '#5ec9ff' },
-  { name: '플래티넘', min: 1000000, color: '#4fe0c9' },
-  { name: '골드', min: 300000, color: '#ffd24f' },
-  { name: '실버', min: 80000, color: '#b9c4d1' },
-  { name: '브론즈', min: 20000, color: '#d98a54' },
-  { name: '아이언', min: 0, color: '#7d8895' }
-];
-
-function getTier(power) {
-  const n = Number(power) || 0;
-  return TIERS.find(t => n >= t.min) || TIERS[TIERS.length - 1];
-}
-
 const PAGE_HTML = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -159,20 +141,18 @@ const PAGE_HTML = `<!DOCTYPE html>
   @keyframes riseIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
   @media (prefers-reduced-motion: reduce){.char-card{animation:none;}}
   @media (max-width:480px){
-    .char-head{gap:14px; padding:22px 18px;}
-    .char-avatar-wrap{width:112px; height:144px;}
-    .char-avatar-wrap img{width:96px; height:126px;}
+    .char-head{gap:14px; padding:22px 18px; flex-wrap:wrap;}
+    .char-avatar-wrap{width:150px; height:190px;}
     .char-info .char-name{font-size:21px;}
   }
   .char-head{display:flex; align-items:center; gap:20px; padding:26px 28px; position:relative; background:linear-gradient(135deg, rgba(51,224,255,0.06), rgba(167,139,250,0.06));}
-  .char-avatar-wrap{width:168px; height:214px; background:var(--panel-2); border-radius:18px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
-  .char-avatar-wrap img{width:146px; height:190px; object-fit:contain; image-rendering:pixelated;}
+  .char-avatar-wrap{width:220px; height:280px; background:var(--panel-2); border-radius:20px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0; padding:12px; overflow:hidden;}
+  .char-avatar-wrap img{width:100%; height:100%; object-fit:contain; image-rendering:pixelated;}
   .char-info .world-tag{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.14em; color:var(--neon-cyan); text-transform:uppercase;}
   .char-info .char-name{font-family:'Space Grotesk',sans-serif; font-size:25px; font-weight:700; margin:4px 0 3px;}
   .char-info .char-job{font-size:13.5px; color:var(--text-dim);}
   .guild-tag{margin-left:auto; text-align:right; font-size:11.5px; color:var(--text-faint); flex-shrink:0;}
   .guild-tag b{display:block; color:var(--text); font-size:13.5px; margin-top:2px;}
-  .tier-badge{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:20px; margin-top:10px; font-family:'Space Mono',monospace; letter-spacing:.03em;}
 
   /* ---- 탭 ---- */
   .tabs{display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,0.015);}
@@ -312,8 +292,6 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
           </div>\`
       : \`<div class="no-items">장착 중인 아이템 정보가 없어요.</div>\`;
 
-    const tier = data.tier;
-
     main.innerHTML = \`
       <div class="char-card">
         <div class="char-head">
@@ -322,7 +300,6 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
             <div class="world-tag">\${escapeHtml(data.world)} 월드</div>
             <div class="char-name">\${escapeHtml(data.name)}</div>
             <div class="char-job">\${escapeHtml(data.job)} · Lv.\${data.level}</div>
-            <div class="tier-badge" style="color:\${tier.color}; background:\${tier.color}1a; border:1px solid \${tier.color}44;">\${tier.name} 티어</div>
           </div>
           <div class="guild-tag">길드<b>\${escapeHtml(data.guild)}</b></div>
         </div>
@@ -336,7 +313,7 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
         <div class="tab-panel active" data-panel="summary">
           <div class="stat-grid">
             <div class="stat-box"><div class="label">레벨</div><div class="value cyan">\${data.level}</div></div>
-            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${data.power}</div></div>
+            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${formatPowerKR(data.power)}</div></div>
             <div class="stat-box"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
             <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
           </div>
@@ -344,8 +321,8 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
 
         <div class="tab-panel" data-panel="stat">
           <div class="stat-grid">
-            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${data.power}</div></div>
-            <div class="stat-box"><div class="label">티어</div><div class="value" style="color:\${tier.color}">\${tier.name}</div></div>
+            <div class="stat-box"><div class="label">전투력</div><div class="value purple">\${formatPowerKR(data.power)}</div></div>
+            <div class="stat-box"><div class="label">직업</div><div class="value">\${escapeHtml(data.job)}</div></div>
             <div class="stat-box"><div class="label">경험치</div><div class="value pink">\${data.exp_rate}%</div></div>
             <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
           </div>
@@ -468,6 +445,23 @@ document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape') closeItemModal();
 });
 
+function formatPowerKR(power){
+  const n = Number(power);
+  if(!n || isNaN(n)) return String(power);
+  if(n < 10000) return n.toLocaleString('ko-KR');
+
+  const eok = Math.floor(n / 100000000);
+  const afterEok = n % 100000000;
+  const man = Math.floor(afterEok / 10000);
+  const rest = afterEok % 10000;
+
+  let out = '';
+  if(eok > 0) out += eok.toLocaleString('ko-KR') + '억 ';
+  if(man > 0) out += man.toLocaleString('ko-KR') + '만 ';
+  if(rest > 0) out += String(rest).padStart(man > 0 || eok > 0 ? 4 : 1, '0');
+  return out.trim() || '0';
+}
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -532,8 +526,7 @@ app.get('/api/character/:name', async (req, res) => {
       image: basic.character_image,
       power: power || '\uc815\ubcf4 \uc5c6\uc74c',
       popularity: popularity.popularity,
-      items: items,
-      tier: getTier(power)
+      items: items
     });
   } catch (err) {
     console.error('[ERROR]', err.status, err.code, JSON.stringify(err.rawBody));
