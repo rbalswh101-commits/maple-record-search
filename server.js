@@ -158,9 +158,15 @@ const PAGE_HTML = `<!DOCTYPE html>
   .char-card{background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; animation:riseIn .45s cubic-bezier(.16,1,.3,1);}
   @keyframes riseIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
   @media (prefers-reduced-motion: reduce){.char-card{animation:none;}}
+  @media (max-width:480px){
+    .char-head{gap:14px; padding:22px 18px;}
+    .char-avatar-wrap{width:112px; height:144px;}
+    .char-avatar-wrap img{width:96px; height:126px;}
+    .char-info .char-name{font-size:21px;}
+  }
   .char-head{display:flex; align-items:center; gap:20px; padding:26px 28px; position:relative; background:linear-gradient(135deg, rgba(51,224,255,0.06), rgba(167,139,250,0.06));}
-  .char-avatar-wrap{width:118px; height:150px; background:var(--panel-2); border-radius:16px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
-  .char-avatar-wrap img{width:98px; height:128px; object-fit:contain; image-rendering:pixelated;}
+  .char-avatar-wrap{width:168px; height:214px; background:var(--panel-2); border-radius:18px; display:flex; align-items:center; justify-content:center; border:1px solid var(--line-strong); flex-shrink:0;}
+  .char-avatar-wrap img{width:146px; height:190px; object-fit:contain; image-rendering:pixelated;}
   .char-info .world-tag{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.14em; color:var(--neon-cyan); text-transform:uppercase;}
   .char-info .char-name{font-family:'Space Grotesk',sans-serif; font-size:25px; font-weight:700; margin:4px 0 3px;}
   .char-info .char-job{font-size:13.5px; color:var(--text-dim);}
@@ -216,22 +222,23 @@ const PAGE_HTML = `<!DOCTYPE html>
   .modal-overlay.open .item-modal{transform:translateY(0) scale(1);}
   .modal-close{position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--text-faint); font-size:16px; cursor:pointer; line-height:1; width:30px; height:30px; border-radius:50%; z-index:2;}
   .modal-close:hover{color:var(--text);}
-  .item-modal-icon-wrap{display:flex; justify-content:center; padding:30px 22px 6px;}
-  .item-modal-icon-wrap img{width:104px; height:104px; object-fit:contain; image-rendering:pixelated; background:var(--panel-2); border-radius:16px; padding:12px; border:2px solid var(--icon-border, var(--neon-cyan)); box-shadow:0 0 24px var(--icon-glow, rgba(51,224,255,0.25));}
-  .item-modal-title{text-align:center; padding:12px 22px 20px; border-bottom:1px solid var(--line);}
-  .item-modal-title .name{font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; color:var(--neon-cyan); line-height:1.3;}
-  .item-modal-title .grade{font-size:12px; color:var(--text-faint); margin-top:5px;}
-  .item-modal-body{padding:18px 22px 24px;}
-  .item-section{margin-bottom:16px;}
+  .item-modal-icon-wrap{display:flex; justify-content:center; padding:32px 22px 18px;}
+  .item-modal-icon-wrap img{width:120px; height:120px; object-fit:contain; image-rendering:pixelated; background:#ffffff; border-radius:18px; padding:14px; border:3px solid var(--icon-border, var(--neon-cyan));}
+  .item-modal-title{text-align:center; padding:0 22px 20px;}
+  .item-modal-title .name{font-family:'Pretendard',sans-serif; font-size:19px; font-weight:700; color:var(--text); line-height:1.3;}
+  .item-modal-title .grade{font-size:13px; color:var(--text-faint); margin-top:6px;}
+  .item-modal-divider{border-bottom:1px dashed var(--line-strong); margin:0 22px 18px;}
+  .item-modal-body{padding:0 22px 26px;}
+  .item-section{margin-bottom:18px;}
   .item-section:last-child{margin-bottom:0;}
-  .item-section-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
-  .item-section-title.pot{color:var(--neon-purple);}
-  .item-section-title.add-pot{color:var(--neon-cyan);}
-  .grade-chip{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; background:var(--neon-green); color:#04140f; font-size:10px; font-weight:800;}
-  .item-line{font-size:13.5px; line-height:2; color:var(--text-dim); padding:2px 0;}
-  .item-line b{color:var(--text); font-family:'Space Mono',monospace;}
-  .item-line.potential{color:#dcc4ff;}
-  .item-line.add-potential{color:#b8ecff;}
+  .item-section-title{font-size:13px; font-weight:700; color:var(--neon-green); margin-bottom:10px; display:flex; align-items:center; gap:7px;}
+  .item-section-title.pot{color:var(--neon-green);}
+  .item-section-title.add-pot{color:var(--neon-green);}
+  .grade-chip{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:5px; background:var(--neon-green); color:#04140f; font-size:11px; font-weight:800;}
+  .item-line{font-size:15px; line-height:2; color:var(--text); padding:1px 0;}
+  .item-line b{color:var(--text); font-weight:700;}
+  .item-line.potential{color:var(--text); font-size:14.5px; line-height:1.9;}
+  .item-line.add-potential{color:var(--text); font-size:14.5px; line-height:1.9;}
   .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:2px;}
   .badge{font-family:'Space Mono',monospace; font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(51,224,255,0.1); color:var(--neon-cyan); border:1px solid rgba(51,224,255,0.28);}
   .item-desc{font-size:12px; color:var(--text-faint); line-height:1.6; font-style:italic; margin-top:2px;}
@@ -424,7 +431,7 @@ function openItemModal(it){
 
   if(it.addPotential && (it.addPotential.grade || it.addPotential.lines.length)){
     sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title add-pot"><span class="grade-chip" style="background:var(--neon-cyan)">L</span> 에디셔널 잠재옵션 \${it.addPotential.grade ? \`<span style="\${potentialGradeColor(it.addPotential.grade)}">(\${escapeHtml(it.addPotential.grade)})</span>\` : ''}</div>
+      <div class="item-section-title add-pot"><span class="grade-chip">L</span> 에디셔널 잠재옵션 \${it.addPotential.grade ? \`<span style="\${potentialGradeColor(it.addPotential.grade)}">(\${escapeHtml(it.addPotential.grade)})</span>\` : ''}</div>
       \${it.addPotential.lines.length ? it.addPotential.lines.map(l => \`<div class="item-line add-potential">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
     </div>\`;
   }
@@ -442,6 +449,7 @@ function openItemModal(it){
       <div class="name">\${escapeHtml(it.name)}</div>
       \${overallGrade ? \`<div class="grade">(\${escapeHtml(overallGrade)} 아이템)</div>\` : ''}
     </div>
+    <div class="item-modal-divider"></div>
     <div class="item-modal-body">\${sectionsHtml}</div>
   \`;
 
