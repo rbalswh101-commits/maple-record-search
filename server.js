@@ -352,79 +352,66 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
   }
 }
 
-function potentialGradeColor(grade){
-  const map = {
-    '레어':'color:#5ec9ff;', '에픽':'color:#a78bfa;',
-    '유니크':'color:#ffd24f;', '레전드리':'color:#4fe0c9;'
-  };
-  return map[grade] || 'color:#ccc;';
-}
+const GRADE_COLOR = {
+  '레어': '#4fa3ff', '에픽': '#b06bff', '유니크': '#ffcf3d', '레전드리': '#3ddc84'
+};
+const GRADE_LETTER = {
+  '레어': 'R', '에픽': 'E', '유니크': 'U', '레전드리': 'L'
+};
 
 function openItemModal(it){
   if(!it) return;
 
-  const overallGrade = (it.potential && it.potential.grade) || null;
-  const borderColorMap = {
-    '레어':'#5ec9ff', '에픽':'#a78bfa', '유니크':'#ffd24f', '레전드리':'#4fe0c9'
-  };
-  const iconBorder = overallGrade ? (borderColorMap[overallGrade] || '#33e0ff') : '#33e0ff';
+  const overallGrade = (it.potential && it.potential.grade) || (it.addPotential && it.addPotential.grade) || null;
+  const iconBorder = overallGrade ? (GRADE_COLOR[overallGrade] || '#33e0ff') : '#33e0ff';
 
   let sectionsHtml = '';
 
-  if(it.starforce && Number(it.starforce) > 0){
-    sectionsHtml += \`<div class="item-section"><div class="badge-row"><span class="badge">⭐ \${it.starforce}성 강화</span></div></div>\`;
-  }
-
-  // 장비분류 + 최종 옵션(기본+추가+잠재 합산)을 한 리스트로
+  // 장비분류 + 최종 옵션(합산)을 한 리스트로, 간결하게
   const infoLines = [];
   infoLines.push(\`장비분류 : <b>\${escapeHtml(it.part || '-')}</b>\`);
   if(it.totalOption && it.totalOption.length){
     it.totalOption.forEach(l => infoLines.push(l));
   }
+  if(it.starforce && Number(it.starforce) > 0){
+    infoLines.push(\`강화 단계 : <b>+\${escapeHtml(String(it.starforce))}</b>\`);
+  }
   sectionsHtml += \`<div class="item-section">
     \${infoLines.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
   </div>\`;
 
-  if(it.baseOption && it.baseOption.length){
-    sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title">기본 옵션</div>
-      \${it.baseOption.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
-    </div>\`;
-  }
-
-  if(it.addOption && it.addOption.length){
-    sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title">추가 옵션 (주문서)</div>
-      \${it.addOption.map(l => \`<div class="item-line">\${l}</div>\`).join('')}
-    </div>\`;
-  }
-
   if(it.potential && (it.potential.grade || it.potential.lines.length)){
+    const g = it.potential.grade;
+    const color = g ? GRADE_COLOR[g] : '#3ddc84';
+    const letter = g ? (GRADE_LETTER[g] || 'L') : 'L';
     sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title pot"><span class="grade-chip">L</span> 잠재옵션 \${it.potential.grade ? \`<span style="\${potentialGradeColor(it.potential.grade)}">(\${escapeHtml(it.potential.grade)})</span>\` : ''}</div>
-      \${it.potential.lines.length ? it.potential.lines.map(l => \`<div class="item-line potential">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
+      <div class="item-section-title" style="color:\${color}"><span class="grade-chip" style="background:\${color}">\${letter}</span> 잠재옵션\${g ? \` (\${escapeHtml(g)})\` : ''}</div>
+      \${it.potential.lines.length ? it.potential.lines.map(l => \`<div class="item-line potential" style="color:\${color}">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
     </div>\`;
   }
 
   if(it.addPotential && (it.addPotential.grade || it.addPotential.lines.length)){
+    const g = it.addPotential.grade;
+    const color = g ? GRADE_COLOR[g] : '#3ddc84';
+    const letter = g ? (GRADE_LETTER[g] || 'L') : 'L';
     sectionsHtml += \`<div class="item-section">
-      <div class="item-section-title add-pot"><span class="grade-chip">L</span> 에디셔널 잠재옵션 \${it.addPotential.grade ? \`<span style="\${potentialGradeColor(it.addPotential.grade)}">(\${escapeHtml(it.addPotential.grade)})</span>\` : ''}</div>
-      \${it.addPotential.lines.length ? it.addPotential.lines.map(l => \`<div class="item-line add-potential">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
+      <div class="item-section-title" style="color:\${color}"><span class="grade-chip" style="background:\${color}">\${letter}</span> 에디셔널 잠재옵션\${g ? \` (\${escapeHtml(g)})\` : ''}</div>
+      \${it.addPotential.lines.length ? it.addPotential.lines.map(l => \`<div class="item-line add-potential" style="color:\${color}">\${escapeHtml(l)}</div>\`).join('') : '<div class="no-detail">옵션 없음</div>'}
     </div>\`;
   }
 
-  if(it.description){
-    sectionsHtml += \`<div class="item-desc">\${escapeHtml(it.description)}</div>\`;
-  }
+  const titleName = it.starforce && Number(it.starforce) > 0
+    ? \`\${escapeHtml(it.name)} (+\${escapeHtml(String(it.starforce))})\`
+    : escapeHtml(it.name);
 
   itemModal.innerHTML = \`
     <button class="modal-close" id="modalCloseBtn">✕</button>
-    <div class="item-modal-icon-wrap" style="--icon-border:\${iconBorder}; --icon-glow:\${iconBorder}40;">
+    <div class="item-modal-icon-wrap" style="--icon-border:\${iconBorder};">
       <img src="\${it.icon}" alt="\${escapeHtml(it.name)}">
     </div>
     <div class="item-modal-title">
-      <div class="name">\${escapeHtml(it.name)}</div>
-      \${overallGrade ? \`<div class="grade">(\${escapeHtml(overallGrade)} 아이템)</div>\` : ''}
+      <div class="name">\${titleName}</div>
+      \${overallGrade ? \`<div class="grade" style="color:\${iconBorder}">(\${escapeHtml(overallGrade)} 아이템)</div>\` : ''}
     </div>
     <div class="item-modal-divider"></div>
     <div class="item-modal-body">\${sectionsHtml}</div>
