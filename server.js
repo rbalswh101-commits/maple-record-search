@@ -247,6 +247,13 @@ const PAGE_HTML = `<!DOCTYPE html>
     .gear-card{padding:7px 6px;}
     .gear-stat-line{font-size:9px;}
   }
+  .enhance-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:10px; margin-top:10px;}
+  .enhance-card{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
+  .enhance-row{display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--text-dim); padding:3px 0;}
+  .enhance-row.main{color:var(--text); font-weight:700;}
+  .enhance-row b{color:var(--neon-cyan); font-family:'Space Mono',monospace; font-weight:700;}
+  .enhance-row.main b{color:#ffd83d;}
+  .enhance-note{font-size:10px; color:var(--text-faint); margin-top:8px; line-height:1.5;}
 
   /* ---- 장비 탭 ---- */
   .items-hint{font-size:11px; color:var(--text-faint); margin-bottom:14px; font-family:'Space Mono',monospace; letter-spacing:.02em;}
@@ -487,6 +494,25 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
          <div class="gear-grid">\${gearOrder.map(idx => gearCardHtml(idx, currentItems[idx])).join('')}</div>\`
       : '';
 
+    const hexaCores = data.hexaStatCores || [];
+    const hexaCoreCardsHtml = hexaCores.length
+      ? hexaCores.map(core => \`<div class="enhance-card">
+            <div class="enhance-row main">\${escapeHtml(core.mainStatName || '')}<b>Lv.\${core.mainStatLevel ?? 0}</b></div>
+            \${core.subStatName1 ? \`<div class="enhance-row">\${escapeHtml(core.subStatName1)}<b>Lv.\${core.subStatLevel1 ?? 0}</b></div>\` : ''}
+            \${core.subStatName2 ? \`<div class="enhance-row">\${escapeHtml(core.subStatName2)}<b>Lv.\${core.subStatLevel2 ?? 0}</b></div>\` : ''}
+         </div>\`).join('')
+      : '<div class="no-items">활성화된 HEXA 스탯 코어가 없어요.</div>';
+
+    const enhanceHtml = \`
+      <div class="summary-section-title">🔮 헥사 · 심볼 강화</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="label">아케인포스</div><div class="value cyan">\${data.arcaneForce ?? 0}</div></div>
+        <div class="stat-box"><div class="label">어센틱포스</div><div class="value purple">\${data.authenticForce ?? 0}</div></div>
+      </div>
+      <div class="enhance-grid">\${hexaCoreCardsHtml}</div>
+      <div class="enhance-note">※ 솔 에르다 보유량은 오픈API에서 제공되지 않아, 대신 HEXA 스탯 코어 강화 레벨을 보여드려요.</div>
+    \`;
+
     const itemsHtml = (currentItems.length)
       ? \`<div class="items-hint">탭하면 상세 옵션을 볼 수 있어요</div>
          <div class="equip-layout">
@@ -522,6 +548,7 @@ raw: \${escapeHtml(JSON.stringify(data.debug_raw))}</pre>
             <div class="stat-box"><div class="label">인기도</div><div class="value green">\${data.popularity}</div></div>
           </div>
           \${gearGridHtml}
+          \${enhanceHtml}
         </div>
 
         <div class="tab-panel" data-panel="stat">
@@ -681,12 +708,20 @@ app.get('/api/character/:name', async (req, res) => {
     const idResult = await nexonGet('/id', { character_name: name });
     const ocid = idResult.ocid;
 
-    const [basic, stat, popularity, itemEquip] = await Promise.all([
+    const [basic, stat, popularity, itemEquip, hexaStat, symbolEquip] = await Promise.all([
       nexonGet('/character/basic', { ocid }),
       nexonGet('/character/stat', { ocid }),
       nexonGet('/character/popularity', { ocid }),
       nexonGet('/character/item-equipment', { ocid }).catch(err => {
         console.error('[ITEM FETCH FAILED]', err.status, JSON.stringify(err.rawBody));
+        return null;
+      }),
+      nexonGet('/character/hexamatrix-stat', { ocid }).catch(err => {
+        console.error('[HEXA STAT FETCH FAILED]', err.status, JSON.stringify(err.rawBody));
+        return null;
+      }),
+      nexonGet('/character/symbol-equipment', { ocid }).catch(err => {
+        console.error('[SYMBOL FETCH FAILED]', err.status, JSON.stringify(err.rawBody));
         return null;
       })
     ]);
@@ -710,6 +745,31 @@ app.get('/api/character/:name', async (req, res) => {
         }));
     }
 
+    let hexaStatCores = [];
+    if (hexaStat && Array.isArray(hexaStat.character_hexa_stat_core)) {
+      hexaStatCores = hexaStat.character_hexa_stat_core
+        .filter(core => core.main_stat_name)
+        .map(core => ({
+          mainStatName: core.main_stat_name,
+          mainStatLevel: core.main_stat_level,
+          subStatName1: core.sub_stat_name_1,
+          subStatLevel1: core.sub_stat_level_1,
+          subStatName2: core.sub_stat_name_2,
+          subStatLevel2: core.sub_stat_level_2
+        }));
+    }
+
+    let arcaneForce = 0;
+    let authenticForce = 0;
+    if (symbolEquip && Array.isArray(symbolEquip.symbol)) {
+      symbolEquip.symbol.forEach(sym => {
+        const force = Number(sym.symbol_force) || 0;
+        const symName = sym.symbol_name || '';
+        if (symName.indexOf('\uc5b4\uc13c\ud2f1') !== -1) authenticForce += force;
+        else if (symName.indexOf('\uc544\ucf00\uc778') !== -1) arcaneForce += force;
+      });
+    }
+
     res.json({
       name: basic.character_name,
       world: basic.world_name,
@@ -720,6 +780,9 @@ app.get('/api/character/:name', async (req, res) => {
       image: basic.character_image,
       power: power || '\uc815\ubcf4 \uc5c6\uc74c',
       popularity: popularity.popularity,
+      hexaStatCores: hexaStatCores,
+      arcaneForce: arcaneForce,
+      authenticForce: authenticForce,
       items: items
     });
   } catch (err) {
